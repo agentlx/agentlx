@@ -1,0 +1,147 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-offline: var(--offline);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.145 0.005 285);
+  --foreground: oklch(0.985 0 0);
+  --surface: oklch(0.18 0.005 285);
+  --surface-raised: oklch(0.215 0.006 285);
+  --card: oklch(0.18 0.005 285);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.215 0.006 285);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.62 0.19 257);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.27 0.006 285);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.27 0.006 285);
+  --muted-foreground: oklch(0.7 0.01 285);
+  --accent: oklch(0.27 0.006 285);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.72 0.17 162);
+  --success-foreground: oklch(0.145 0.005 285);
+  --warning: oklch(0.78 0.16 85);
+  --offline: oklch(0.55 0.01 285);
+  --border: oklch(0.3 0.005 285);
+  --input: oklch(0.3 0.005 285);
+  --ring: oklch(0.62 0.19 257);
+  --sidebar: oklch(0.18 0.005 285);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.62 0.19 257);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.27 0.006 285);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.3 0.005 285);
+  --sidebar-ring: oklch(0.62 0.19 257);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.15);
+  }
+}
+@keyframes terminal-scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .animate-pulse-dot {
+    animation: pulse-dot 2s var(--ease-out-expo) infinite;
+  }
+  .animate-scan {
+    animation: terminal-scan 4s linear infinite;
+  }
+  .animate-fade-in {
+    animation: fade-in 400ms var(--ease-out-expo) both;
+  }
+  .glow-success {
+    box-shadow: 0 0 8px color-mix(in oklab, var(--success) 50%, transparent);
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    font-feature-settings: "cv02", "cv03", "cv11", "ss01";
+  }
+}

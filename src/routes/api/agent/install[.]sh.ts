@@ -1,0 +1,51 @@
+import path from "node:path";
+import { readFile } from "node:fs/promises";
+import { createFileRoute } from "@tanstack/react-router";
+import { jsonError, textResponse } from "@/server/http.server";
+
+const INSTALL_SCRIPT_PATH = path.resolve(process.cwd(), "agent-linux", "install.sh");
+
+export const Route = createFileRoute("/api/agent/install.sh")({
+  server: {
+    handlers: {
+      GET: async ({ request }) => {
+        try {
+          const script = await readFile(INSTALL_SCRIPT_PATH, "utf8");
+          const origin = new URL(request.url).origin;
+          const replacements: Array<[string, string]> = [
+            [
+              'DEFAULT_SOURCE_BASE_URL=""',
+              `DEFAULT_SOURCE_BASE_URL=${JSON.stringify(`${origin}/api/agent/files`)}`,
+            ],
+            [
+              'DEFAULT_RUNTIME_MANIFEST_URL=""',
+              `DEFAULT_RUNTIME_MANIFEST_URL=${JSON.stringify(`${origin}/api/agent/files/runtime-manifest`)}`,
+            ],
+            [
+              'DEFAULT_RUNTIME_FILE_URL=""',
+              `DEFAULT_RUNTIME_FILE_URL=${JSON.stringify(`${origin}/api/agent/files/runtime`)}`,
+            ],
+          ];
+          let rendered = script;
+          for (const [search, replacement] of replacements) {
+            rendered = rendered.replace(search, replacement);
+          }
+
+          return textResponse(rendered, {
+            headers: {
+              "content-type": "text/x-shellscript; charset=utf-8",
+              "cache-control": "no-store",
+            },
+          });
+        } catch (error) {
+          return jsonError(
+            error instanceof Error
+              ? error.message
+              : "Nao foi possivel carregar o instalador do agent.",
+            500,
+          );
+        }
+      },
+    },
+  },
+});

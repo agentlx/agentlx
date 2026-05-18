@@ -1,0 +1,68 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3015}:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-America/Sao_Paulo}
+      TZ: ${APP_TIME_ZONE:-America/Sao_Paulo}
+      PGTZ: ${APP_TIME_ZONE:-America/Sao_Paulo}
+      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      DATABASE_CONNECT_RETRIES: ${DATABASE_CONNECT_RETRIES:-30}
+      DATABASE_CONNECT_RETRY_DELAY_MS: ${DATABASE_CONNECT_RETRY_DELAY_MS:-2000}
+      AGENTLX_SEED_ON_BOOT: ${AGENTLX_SEED_ON_BOOT:-true}
+      AGENTLX_PENDING_TOKEN_SECRET: ${AGENTLX_PENDING_TOKEN_SECRET:-}
+      AGENTLX_PENDING_TOKEN_SECRET_FILE: ${AGENTLX_PENDING_TOKEN_SECRET_FILE:-}
+      AGENTLX_MFA_ENCRYPTION_SECRET: ${AGENTLX_MFA_ENCRYPTION_SECRET:-}
+      AGENTLX_MFA_ENCRYPTION_SECRET_FILE: ${AGENTLX_MFA_ENCRYPTION_SECRET_FILE:-}
+      AGENTLX_MFA_ENCRYPTION_SECRET_PREVIOUS: ${AGENTLX_MFA_ENCRYPTION_SECRET_PREVIOUS:-}
+      AGENTLX_MFA_ISSUER: ${AGENTLX_MFA_ISSUER:-agentlx}
+      AGENTLX_MFA_PENDING_TTL_MINUTES: ${AGENTLX_MFA_PENDING_TTL_MINUTES:-15}
+      AGENTLX_MFA_SETUP_TTL_MINUTES: ${AGENTLX_MFA_SETUP_TTL_MINUTES:-15}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-agentlx}
+      POSTGRES_USER: ${POSTGRES_USER:-agentlx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentlx}
+      POSTGRES_PASSWORD_FILE: ${POSTGRES_PASSWORD_FILE:-}
+      AGENTLX_BOOTSTRAP_ADMIN_PASSWORD_FILE: ${AGENTLX_BOOTSTRAP_ADMIN_PASSWORD_FILE:-}
+    command: >
+      sh -c '
+        npm run db:wait &&
+        npm run db:init &&
+        npm run start
+      '
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    profiles: ["with-db"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentlx}
+      POSTGRES_USER: ${POSTGRES_USER:-agentlx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentlx}
+      POSTGRES_PASSWORD_FILE: ${POSTGRES_PASSWORD_FILE:-}
+      TZ: ${APP_TIME_ZONE:-America/Sao_Paulo}
+      PGTZ: ${APP_TIME_ZONE:-America/Sao_Paulo}
+    command: ["postgres", "-c", "timezone=${APP_TIME_ZONE:-America/Sao_Paulo}"]
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentlx} -d ${POSTGRES_DB:-agentlx}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

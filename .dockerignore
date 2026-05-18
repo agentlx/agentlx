@@ -1,0 +1,14 @@
+.git
+.gitignore
+.lovable
+.tanstack
+.wrangler
+node_modules
+dist
+.output
+.data
+agent-linux/__pycache__
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
