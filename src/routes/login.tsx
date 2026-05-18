@@ -55,9 +55,11 @@ function LoginPage() {
         return;
       }
 
-      await refreshViewer();
-      await router.invalidate();
-      await navigate({ to: resolveDefaultAuthenticatedPath(response) });
+      if ("accessibleScreens" in response) {
+        await refreshViewer();
+        await router.invalidate();
+        await navigate({ to: resolveDefaultAuthenticatedPath(response) });
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Nao foi possivel autenticar.");
     } finally {

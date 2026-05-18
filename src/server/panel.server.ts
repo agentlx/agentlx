@@ -1476,7 +1476,7 @@ export async function getDashboardView(viewerUserId: string): Promise<DashboardV
     loadExecutions(undefined, undefined, viewerUserId, DASHBOARD_EXECUTION_LIMIT),
     loadDashboardMachineStats(viewerUserId),
   ]);
-  const machineViews = machines.map(toMachineView);
+  const machineViews = machines.map((machine) => toMachineView(machine));
   const dashboardMachines = [...machineViews]
     .sort((left, right) =>
       left.hostname.localeCompare(right.hostname, "pt-BR", { sensitivity: "base" }),
@@ -1859,7 +1859,7 @@ export async function getTemplateCatalogView(viewerUserId: string): Promise<Temp
   ]);
   return {
     templates: templates.map(toTemplateView),
-    machines: machines.map(toMachineView),
+    machines: machines.map((machine) => toMachineView(machine)),
   };
 }
 
@@ -2738,14 +2738,15 @@ export async function queueTemplateExecution(
 
     return {
       id: executionId,
-      executionKind: "template",
+      executionKind: "template" as const,
       templateId: template.id,
       templateName: template.name,
       machineId: machine.id,
       machineHostname: machine.hostname,
+      machineAvailable: true,
       executedAt: formatExecutionDate(availableAt),
       durationMs: 0,
-      status: "queued",
+      status: "queued" as const,
       output: "",
       errorOutput: "",
       command: protectedCommand.redactedCommand,
@@ -2848,6 +2849,7 @@ export async function startRealtimeTemplateExecution(
         templateName: template.name,
         machineId: machine.id,
         machineHostname: machine.hostname,
+        machineAvailable: true,
         executedAt: formatExecutionDate(requestedAt),
         durationMs: 0,
         status: "running" as const,
@@ -2993,14 +2995,15 @@ export async function queueRemoteTerminalCommand(
 
     return {
       id: executionId,
-      executionKind: "terminal",
+      executionKind: "terminal" as const,
       templateId: "terminal-remote-shell",
       templateName: "Terminal remoto",
       machineId: machine.id,
       machineHostname: machine.hostname,
+      machineAvailable: true,
       executedAt: formatExecutionDate(requestedAt),
       durationMs: 0,
-      status: "queued",
+      status: "queued" as const,
       output: "",
       errorOutput: "",
       command: protectedCommand.redactedCommand,
@@ -3087,14 +3090,15 @@ export async function queueMachineControlAction(
 
     return {
       id: executionId,
-      executionKind: "terminal",
+      executionKind: "terminal" as const,
       templateId: `machine-control-${input.action}`,
       templateName,
       machineId: machine.id,
       machineHostname: machine.hostname,
+      machineAvailable: true,
       executedAt: formatExecutionDate(requestedAt),
       durationMs: 0,
-      status: "queued",
+      status: "queued" as const,
       output: "",
       errorOutput: "",
       command: protectedCommand.redactedCommand,
@@ -3204,6 +3208,7 @@ export async function queueMachineSync(input: {
       templateName,
       machineId: machine.id,
       machineHostname: machine.hostname,
+      machineAvailable: true,
       executedAt: formatExecutionDate(requestedAt),
       durationMs: 0,
       status: "queued" as const,
@@ -3318,6 +3323,7 @@ export async function queueMachineAgentUninstall(input: {
       templateName,
       machineId: machine.id,
       machineHostname: machine.hostname,
+      machineAvailable: true,
       executedAt: formatExecutionDate(requestedAt),
       durationMs: 0,
       status: "queued" as const,

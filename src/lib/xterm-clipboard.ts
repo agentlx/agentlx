@@ -1,7 +1,12 @@
-import type { Terminal } from "@xterm/xterm";
+export type TerminalClipboardAdapter = {
+  attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean): void;
+  focus(): void;
+  getSelection(): string;
+  hasSelection(): boolean;
+};
 
 type SetupTerminalClipboardInput = {
-  terminal: Terminal;
+  terminal: TerminalClipboardAdapter;
   container: HTMLElement;
   sendInput: (text: string) => void;
 };

@@ -75,7 +75,7 @@ async function collectRuntimeFilesFromDir(relativeDir: string): Promise<string[]
 }
 
 export async function listAgentRuntimeFiles() {
-  const files = [...AGENT_RUNTIME_TOP_LEVEL_FILES];
+  const files: string[] = [...AGENT_RUNTIME_TOP_LEVEL_FILES];
 
   for (const relativeDir of AGENT_RUNTIME_DIRS) {
     files.push(...(await collectRuntimeFilesFromDir(relativeDir)));

@@ -691,8 +691,8 @@ function matchesAuditSearch(
     actorType: string;
     actorId: string;
     message: string;
-    machineHostname: string;
-    executionId: string;
+    machineHostname: string | null;
+    executionId: string | null;
     createdAt: string;
   },
   search: string,

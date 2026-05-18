@@ -3,7 +3,9 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 import { renderErrorPage } from "./lib/error-page";
 import { getEnv } from "./server/env.server";
 
-const csrfMiddleware = createMiddleware().server(async ({ next, request, handlerType }) => {
+const csrfMiddleware = createMiddleware().server(async (context) => {
+  const { next, request } = context;
+  const handlerType = (context as { handlerType?: string }).handlerType;
   if (handlerType === "serverFn" && request.method !== "GET" && request.method !== "HEAD") {
     const origin = request.headers.get("origin");
     const expectedOrigin = getEnv().APP_ORIGIN;
