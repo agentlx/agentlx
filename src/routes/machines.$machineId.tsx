@@ -50,6 +50,7 @@ import {
   updateMachineAgentNameAction,
   updateMachineScheduledTaskLimitAction,
 } from "@/lib/panel-api";
+import { requireRouteScreen } from "@/lib/route-protection";
 import { hasPendingTemplateTerminalLaunch } from "@/lib/template-terminal-handoff";
 import { ServiceTag } from "./index";
 
@@ -61,6 +62,7 @@ const LazyRemoteTerminal = lazy(() =>
 
 export const Route = createFileRoute("/machines/$machineId")({
   loader: async ({ params }) => {
+    await requireRouteScreen("machines");
     const detail = await getMachineDetailData({ data: { machineId: params.machineId } });
     if (!detail) throw notFound();
     return detail;

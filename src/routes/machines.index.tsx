@@ -16,9 +16,13 @@ import {
   getMachinesData,
   queueMachineAgentUninstallAction,
 } from "@/lib/panel-api";
+import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/machines/")({
-  loader: () => getMachinesData(),
+  loader: async () => {
+    await requireRouteScreen("machines");
+    return getMachinesData();
+  },
   head: () => ({
     meta: [
       { title: APP_NAME },

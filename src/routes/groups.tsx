@@ -12,9 +12,13 @@ import {
   getMachineGroupsData,
   updateMachineGroupAction,
 } from "@/lib/panel-api";
+import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/groups")({
-  loader: () => getMachineGroupsData(),
+  loader: async () => {
+    await requireRouteScreen("groups");
+    return getMachineGroupsData();
+  },
   head: () => ({
     meta: [
       { title: APP_NAME },

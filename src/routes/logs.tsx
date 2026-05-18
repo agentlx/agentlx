@@ -18,9 +18,13 @@ import { toast } from "@/components/ui/sonner";
 import { APP_NAME } from "@/lib/brand";
 import type { ExecutionLogView, RecurringScheduleView } from "@/lib/agentlx";
 import { cancelRecurringTemplateScheduleAction, getExecutionLogsData } from "@/lib/panel-api";
+import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/logs")({
-  loader: () => getExecutionLogsData(),
+  loader: async () => {
+    await requireRouteScreen("logs");
+    return getExecutionLogsData();
+  },
   head: () => ({
     meta: [
       { title: APP_NAME },

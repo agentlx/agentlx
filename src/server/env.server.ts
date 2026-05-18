@@ -46,6 +46,15 @@ function applyFileEnv(env: NodeJS.ProcessEnv) {
   return env;
 }
 
+function optionalEnvString(schema: z.ZodString) {
+  return z.preprocess((value) => {
+    if (typeof value === "string" && value.trim() === "") {
+      return undefined;
+    }
+    return value;
+  }, schema.optional());
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   HOST: z.string().min(1).default("0.0.0.0"),
@@ -77,7 +86,7 @@ const envSchema = z.object({
   DATABASE_CONNECT_RETRIES: z.coerce.number().int().positive().default(20),
   DATABASE_CONNECT_RETRY_DELAY_MS: z.coerce.number().int().positive().default(2000),
   AGENTLX_PENDING_TOKEN_SECRET: z.string().min(16).default("change-me-pending-token-secret"),
-  AGENTLX_MFA_ENCRYPTION_SECRET: z.string().min(16).optional(),
+  AGENTLX_MFA_ENCRYPTION_SECRET: optionalEnvString(z.string().min(16)),
   AGENTLX_MFA_ENCRYPTION_SECRET_PREVIOUS: z.string().default(""),
   AGENTLX_MFA_ISSUER: z.string().min(1).default("agentlx"),
   AGENTLX_MFA_PENDING_TTL_MINUTES: z.coerce.number().int().positive().default(15),
@@ -88,9 +97,9 @@ const envSchema = z.object({
     .transform((value) =>
       value == null ? process.env.NODE_ENV !== "production" : /^true$/i.test(value),
     ),
-  AGENTLX_BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
-  AGENTLX_BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8).optional(),
-  AGENTLX_BOOTSTRAP_ADMIN_FULL_NAME: z.string().min(3).max(160).optional(),
+  AGENTLX_BOOTSTRAP_ADMIN_EMAIL: optionalEnvString(z.string().email()),
+  AGENTLX_BOOTSTRAP_ADMIN_PASSWORD: optionalEnvString(z.string().min(8)),
+  AGENTLX_BOOTSTRAP_ADMIN_FULL_NAME: optionalEnvString(z.string().min(3).max(160)),
 });
 
 let cachedEnv: z.infer<typeof envSchema> | null = null;

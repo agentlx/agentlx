@@ -4,7 +4,15 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
-## 0.1.0 - Unreleased
+## 0.1.1 - 2026-05-18
+
+### Fixed
+
+- Redirect unauthenticated private routes to `/login` before loading protected data.
+- Avoid passing empty optional bootstrap variables from the Docker Secrets compose example.
+- Treat empty optional environment variables as unset during server configuration validation.
+
+## 0.1.0 - 2026-05-18
 
 ### Added
 

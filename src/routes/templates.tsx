@@ -20,6 +20,7 @@ import {
   queueTemplateExecutionAction,
   updateTemplateAction,
 } from "@/lib/panel-api";
+import { requireRouteScreen } from "@/lib/route-protection";
 import { storePendingTemplateTerminalLaunch } from "@/lib/template-terminal-handoff";
 import { ServiceTag } from "./index";
 
@@ -30,7 +31,10 @@ const LazyTemplateShellModal = lazy(() =>
 );
 
 export const Route = createFileRoute("/templates")({
-  loader: () => getTemplateCatalogData(),
+  loader: async () => {
+    await requireRouteScreen("templates");
+    return getTemplateCatalogData();
+  },
   head: () => ({
     meta: [
       { title: APP_NAME },

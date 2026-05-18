@@ -3,9 +3,13 @@ import { Activity, ArrowUpRight, CheckCircle2, Cpu, Server, ServerCrash } from "
 import { AppShell, Crumb, StatusDot, StatusLabel } from "@/components/AppShell";
 import { APP_NAME } from "@/lib/brand";
 import { getDashboardData } from "@/lib/panel-api";
+import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/")({
-  loader: () => getDashboardData(),
+  loader: async () => {
+    await requireRouteScreen("dashboard");
+    return getDashboardData();
+  },
   head: () => ({
     meta: [
       { title: APP_NAME },
