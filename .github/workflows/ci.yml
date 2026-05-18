@@ -42,7 +42,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-        continue-on-error: true
       - run: npm run db:init
       - run: npm run build
       - run: docker build -t agentlx:test .

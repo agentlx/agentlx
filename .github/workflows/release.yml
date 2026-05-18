@@ -25,9 +25,14 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/agentlx
           tags: |
+            type=ref,event=tag
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=agentlx
+            org.opencontainers.image.description=Open source Linux operations hub with web panel and Python agent runtime
+            org.opencontainers.image.licenses=Apache-2.0
       - uses: docker/build-push-action@v6
         with:
           context: .

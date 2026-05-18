@@ -29,9 +29,16 @@ git push origin v0.1.0
 The release workflow publishes:
 
 ```text
+ghcr.io/<owner>/agentlx:v0.1.0
 ghcr.io/<owner>/agentlx:0.1.0
 ghcr.io/<owner>/agentlx:0.1
 ghcr.io/<owner>/agentlx:latest
 ```
 
 Production users should pin a versioned tag, not `latest`.
+
+Before publishing the first public release, complete:
+
+```text
+docs/public-release-checklist.md
+```

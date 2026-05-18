@@ -1,4 +1,9 @@
-import { randomBytes, scrypt as nodeScrypt, timingSafeEqual, type ScryptOptions } from "node:crypto";
+import {
+  randomBytes,
+  scrypt as nodeScrypt,
+  timingSafeEqual,
+  type ScryptOptions,
+} from "node:crypto";
 const SCRYPT_KEYLEN = 64;
 const SCRYPT_N = 16_384;
 const SCRYPT_R = 8;

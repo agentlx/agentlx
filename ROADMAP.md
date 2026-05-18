@@ -2,6 +2,7 @@
 
 ## v0.1.0
 
+- Keep `npm run typecheck` passing in CI.
 - Publish the first open source-ready repository structure.
 - Provide Docker image distribution through GHCR.
 - Provide production installation examples with `.env` and Docker Secrets.
