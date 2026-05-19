@@ -1,7 +1,39 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { getEnv } from "./server/env.server";
+import { getDeploymentSecurityState, getEnv } from "./server/env.server";
+
+const deploymentLockMiddleware = createMiddleware().server(async ({ next, request }) => {
+  const url = new URL(request.url);
+  const deployment = getDeploymentSecurityState();
+
+  if (
+    deployment.locked &&
+    url.pathname.startsWith("/api/") &&
+    !["/api/health", "/api/deployment-status"].includes(url.pathname)
+  ) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        code: "DEPLOYMENT_LOCKED",
+        message: "Configure APP_ORIGIN com HTTPS para liberar o painel agentlx.",
+        docsUrl: deployment.docsUrl,
+        appOrigin: deployment.appOrigin,
+        reasons: deployment.reasons,
+      }),
+      {
+        status: 423,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+        },
+      },
+    );
+  }
+
+  return next();
+});
 
 const csrfMiddleware = createMiddleware().server(async (context) => {
   const { next, request } = context;
@@ -33,5 +65,5 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  requestMiddleware: [csrfMiddleware, errorMiddleware],
+  requestMiddleware: [deploymentLockMiddleware, csrfMiddleware, errorMiddleware],
 }));

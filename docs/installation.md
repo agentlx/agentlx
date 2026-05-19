@@ -16,6 +16,10 @@ Production requires:
 - `AGENTLX_SEED_ON_BOOT=false`
 - restricted database network access
 
+If `APP_ORIGIN` uses `http://`, the server still starts but agentlx remains locked. The web UI
+shows a setup screen and links to `https://doc.agentlx.com.br`; login, agents, remote terminal, and
+panel APIs remain unavailable until HTTPS is configured.
+
 ## Generate Secrets
 
 For `.env` based deployments:
@@ -54,20 +58,19 @@ The app container applies the database schema and starts the web server.
 
 ## First Admin
 
-If no users exist, agentlx creates a bootstrap admin and prints the temporary password in the app logs unless `AGENTLX_BOOTSTRAP_ADMIN_PASSWORD` is configured.
+agentlx does not create an administrator automatically. After the stack is running, create the first administrator with:
 
 ```bash
-docker compose logs app
-```
-
-You can also create or reset an admin manually:
-
-```bash
-docker compose exec app node scripts/create-admin.mjs \
+read -rsp "Admin password: " AGENTLX_ADMIN_PASSWORD
+printf '\n'
+printf '%s' "$AGENTLX_ADMIN_PASSWORD" | docker compose exec -T app node scripts/create-admin.mjs \
   --name "Admin" \
   --email "admin@example.com" \
-  --password "change-this-password"
+  --password-stdin
+unset AGENTLX_ADMIN_PASSWORD
 ```
+
+The same command updates the admin password and permissions if the email already exists.
 
 ## Install Linux Agents
 

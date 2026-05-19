@@ -31,7 +31,7 @@ import {
 } from "@/lib/auth";
 import { appendAuditLog } from "./audit.server";
 import { dbQuery, withTransaction } from "./db.server";
-import { getEnv } from "./env.server";
+import { assertDeploymentReady, getDeploymentSecurityState, getEnv } from "./env.server";
 import {
   assessTotpToken,
   buildTotpOtpAuthUrl,
@@ -642,6 +642,12 @@ async function deleteSessionByToken(token: string) {
 }
 
 export async function getCurrentViewer() {
+  if (getDeploymentSecurityState().locked) {
+    deleteCookie(SESSION_COOKIE_NAME, { path: "/" });
+    clearMfaCookies();
+    return null;
+  }
+
   const token = getCookie(SESSION_COOKIE_NAME);
   if (!token) {
     return null;
@@ -678,6 +684,10 @@ export async function getCurrentViewer() {
 }
 
 export async function getViewerFromCookieHeader(cookieHeader: string | undefined) {
+  if (getDeploymentSecurityState().locked) {
+    return null;
+  }
+
   const token = readCookieTokenFromHeader(cookieHeader);
   if (!token) {
     return null;
@@ -733,6 +743,7 @@ export async function getProfilePhotoForViewer(userId: string) {
 }
 
 export async function requireAuthenticatedViewer() {
+  assertDeploymentReady();
   const viewer = await getCurrentViewer();
   if (!viewer) {
     throw new Error("Sessao expirada ou ausente. Faca login novamente.");
@@ -765,6 +776,7 @@ export async function requireAdminViewer() {
 }
 
 export async function loginUser(email: string, password: string) {
+  assertDeploymentReady();
   const normalizedEmail = normalizeEmail(email);
   const user = await findUserByEmail(email);
   if (!user || user.disabled) {
@@ -1260,6 +1272,7 @@ export async function verifyOwnMfaSetup(input: MfaCodeInput) {
 }
 
 export async function validateMfaLogin(input: MfaCodeInput) {
+  assertDeploymentReady();
   const pending = readEncryptedCookie<MfaPendingPayload>(MFA_PENDING_COOKIE_NAME);
   const ipAddress = getRequestIP({ xForwardedFor: true }) ?? "";
   const userAgent = getRequestHeader("user-agent") ?? "";

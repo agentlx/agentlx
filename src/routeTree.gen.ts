@@ -20,6 +20,7 @@ import { Route as MachinesIndexRouteImport } from './routes/machines.index'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
 import { Route as ApiProfilePhotoRouteImport } from './routes/api/profile-photo'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiDeploymentStatusRouteImport } from './routes/api/deployment-status'
 import { Route as ApiTerminalPresenceRouteImport } from './routes/api/terminal/presence'
 import { Route as ApiTerminalCloseRouteImport } from './routes/api/terminal/close'
 import { Route as ApiAgentUpdateDotshRouteImport } from './routes/api/agent/update[.]sh'
@@ -88,6 +89,11 @@ const ApiProfilePhotoRoute = ApiProfilePhotoRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDeploymentStatusRoute = ApiDeploymentStatusRouteImport.update({
+  id: '/api/deployment-status',
+  path: '/api/deployment-status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTerminalPresenceRoute = ApiTerminalPresenceRouteImport.update({
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
   '/users': typeof UsersRoute
+  '/api/deployment-status': typeof ApiDeploymentStatusRoute
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
   '/users': typeof UsersRoute
+  '/api/deployment-status': typeof ApiDeploymentStatusRoute
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
   '/users': typeof UsersRoute
+  '/api/deployment-status': typeof ApiDeploymentStatusRoute
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
@@ -257,6 +266,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/templates'
     | '/users'
+    | '/api/deployment-status'
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/templates'
     | '/users'
+    | '/api/deployment-status'
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/templates'
     | '/users'
+    | '/api/deployment-status'
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
@@ -339,6 +351,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   TemplatesRoute: typeof TemplatesRoute
   UsersRoute: typeof UsersRoute
+  ApiDeploymentStatusRoute: typeof ApiDeploymentStatusRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiProfilePhotoRoute: typeof ApiProfilePhotoRoute
   MachinesMachineIdRoute: typeof MachinesMachineIdRoute
@@ -436,6 +449,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/deployment-status': {
+      id: '/api/deployment-status'
+      path: '/api/deployment-status'
+      fullPath: '/api/deployment-status'
+      preLoaderRoute: typeof ApiDeploymentStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/terminal/presence': {
@@ -547,6 +567,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   TemplatesRoute: TemplatesRoute,
   UsersRoute: UsersRoute,
+  ApiDeploymentStatusRoute: ApiDeploymentStatusRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiProfilePhotoRoute: ApiProfilePhotoRoute,
   MachinesMachineIdRoute: MachinesMachineIdRoute,

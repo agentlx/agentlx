@@ -230,7 +230,7 @@ Responsabilidades principais do backend.
 - `auth.server.ts`
   - login, logout, sessao, protecao por role e por tela.
 - `db.server.ts`
-  - pool PostgreSQL, bootstrap do schema, seed e bootstrap admin.
+  - pool PostgreSQL, bootstrap do schema e seed opcional.
 - `agent.server.ts`
   - endpoints do agent, registro, heartbeat, poll e resultado.
 - `panel.server.ts`
@@ -395,28 +395,31 @@ Os arquivos de exemplo oficiais sao:
 
 ### Variaveis da aplicacao
 
-| Variavel                                | Obrigatoria | Descricao                                                                                            |
-| --------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                              | nao         | ambiente de execucao                                                                                 |
-| `HOST`                                  | nao         | host HTTP do app                                                                                     |
-| `PORT`                                  | nao         | porta HTTP do app                                                                                    |
-| `APP_ORIGIN`                            | sim         | origem publica usada por CSRF, SSE, WebSocket e validacao de origem; em producao deve ser HTTPS real |
-| `APP_TIME_ZONE`                         | nao         | fuso horario IANA usado pelo app e pela sessao PostgreSQL; default `America/Sao_Paulo`               |
-| `DATABASE_URL`                          | sim         | conexao PostgreSQL                                                                                   |
-| `DATABASE_URL_FILE`                     | nao         | caminho de arquivo/secret para `DATABASE_URL`                                                        |
-| `DATABASE_SSL`                          | nao         | ativa SSL no acesso ao banco; em producao o default e `true`                                         |
-| `DATABASE_POOL_MAX`                     | nao         | tamanho maximo do pool                                                                               |
-| `DATABASE_CONNECT_RETRIES`              | nao         | tentativas de espera do banco                                                                        |
-| `DATABASE_CONNECT_RETRY_DELAY_MS`       | nao         | intervalo entre tentativas                                                                           |
-| `AGENTLX_PENDING_TOKEN_SECRET`          | sim         | segredo usado para cifrar tokens pendentes                                                           |
-| `AGENTLX_PENDING_TOKEN_SECRET_FILE`     | nao         | caminho de arquivo/secret para `AGENTLX_PENDING_TOKEN_SECRET`                                        |
-| `AGENTLX_MFA_ENCRYPTION_SECRET`         | recomendado | segredo usado para cifrar dados MFA                                                                  |
-| `AGENTLX_MFA_ENCRYPTION_SECRET_FILE`    | nao         | caminho de arquivo/secret para `AGENTLX_MFA_ENCRYPTION_SECRET`                                       |
-| `AGENTLX_SEED_ON_BOOT`                  | nao         | injeta seed demo quando o banco esta vazio; em producao o default e `false`                          |
-| `AGENTLX_BOOTSTRAP_ADMIN_FULL_NAME`     | nao         | nome da conta admin bootstrap                                                                        |
-| `AGENTLX_BOOTSTRAP_ADMIN_EMAIL`         | nao         | email da conta admin bootstrap                                                                       |
-| `AGENTLX_BOOTSTRAP_ADMIN_PASSWORD`      | nao         | senha fixa da conta admin bootstrap                                                                  |
-| `AGENTLX_BOOTSTRAP_ADMIN_PASSWORD_FILE` | nao         | caminho de arquivo/secret para `AGENTLX_BOOTSTRAP_ADMIN_PASSWORD`                                    |
+| Variavel                             | Obrigatoria | Descricao                                                                                            |
+| ------------------------------------ | ----------- | ---------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                           | nao         | ambiente de execucao                                                                                 |
+| `HOST`                               | nao         | host HTTP do app                                                                                     |
+| `PORT`                               | nao         | porta HTTP do app                                                                                    |
+| `APP_ORIGIN`                         | sim         | origem publica usada por CSRF, SSE, WebSocket e validacao de origem; em producao deve ser HTTPS real |
+| `APP_TIME_ZONE`                      | nao         | fuso horario IANA usado pelo app e pela sessao PostgreSQL; default `America/Sao_Paulo`               |
+| `DATABASE_URL`                       | sim         | conexao PostgreSQL                                                                                   |
+| `DATABASE_URL_FILE`                  | nao         | caminho de arquivo/secret para `DATABASE_URL`                                                        |
+| `DATABASE_SSL`                       | nao         | ativa SSL no acesso ao banco; em producao o default e `true`                                         |
+| `DATABASE_POOL_MAX`                  | nao         | tamanho maximo do pool                                                                               |
+| `DATABASE_CONNECT_RETRIES`           | nao         | tentativas de espera do banco                                                                        |
+| `DATABASE_CONNECT_RETRY_DELAY_MS`    | nao         | intervalo entre tentativas                                                                           |
+| `AGENTLX_PENDING_TOKEN_SECRET`       | sim         | segredo usado para cifrar tokens pendentes                                                           |
+| `AGENTLX_PENDING_TOKEN_SECRET_FILE`  | nao         | caminho de arquivo/secret para `AGENTLX_PENDING_TOKEN_SECRET`                                        |
+| `AGENTLX_MFA_ENCRYPTION_SECRET`      | recomendado | segredo usado para cifrar dados MFA                                                                  |
+| `AGENTLX_MFA_ENCRYPTION_SECRET_FILE` | nao         | caminho de arquivo/secret para `AGENTLX_MFA_ENCRYPTION_SECRET`                                       |
+| `AGENTLX_SEED_ON_BOOT`               | nao         | injeta seed demo quando o banco esta vazio; em producao o default e `false`                          |
+
+### Bloqueio de HTTPS
+
+Se `APP_ORIGIN` nao estiver configurado com `https://`, o servidor sobe em modo bloqueado.
+Nesse modo, a interface mostra que o agentlx iniciou corretamente e aponta para
+`https://doc.agentlx.com.br`, mas login, APIs sensiveis, enrollment, terminal e execucoes ficam
+indisponiveis. `NODE_ENV=development` nao libera HTTP.
 
 ### Comportamento importante do bootstrap
 
@@ -424,8 +427,8 @@ Na primeira subida com banco vazio:
 
 - o schema e garantido automaticamente;
 - templates padrao sao inseridos;
-- se nao houver usuarios, o sistema cria um admin inicial;
-- se `AGENTLX_BOOTSTRAP_ADMIN_PASSWORD` nao existir, a senha e gerada e impressa no log.
+- nenhum usuario administrador e criado automaticamente;
+- o primeiro administrador deve ser criado explicitamente com `scripts/create-admin.mjs`.
 
 ## Subindo em desenvolvimento local
 
@@ -512,13 +515,19 @@ Importante: o Docker Compose nao le `.env.docker` automaticamente. Sempre passe 
 docker compose --env-file .env.docker --profile with-db down -v
 docker compose --env-file .env.docker --profile with-db up -d --build
 docker compose --env-file .env.docker exec app npm run db:init
-docker compose --env-file .env.docker exec app node scripts/create-admin.mjs --name "Admin" --email "admin@agentlx.local" --password "troque-esta-senha"
+read -rsp "Admin password: " AGENTLX_ADMIN_PASSWORD
+printf '\n'
+printf '%s' "$AGENTLX_ADMIN_PASSWORD" | docker compose --env-file .env.docker exec -T app node scripts/create-admin.mjs --name "Admin" --email "admin@agentlx.local" --password-stdin
+unset AGENTLX_ADMIN_PASSWORD
 ```
 
 Para criar ou atualizar um administrador depois que o banco ja existe:
 
 ```bash
-docker compose --env-file .env.docker exec app node scripts/create-admin.mjs --name "Admin" --email "admin@agentlx.local" --password "troque-esta-senha"
+read -rsp "Admin password: " AGENTLX_ADMIN_PASSWORD
+printf '\n'
+printf '%s' "$AGENTLX_ADMIN_PASSWORD" | docker compose --env-file .env.docker exec -T app node scripts/create-admin.mjs --name "Admin" --email "admin@agentlx.local" --password-stdin
+unset AGENTLX_ADMIN_PASSWORD
 ```
 
 Para confirmar quais variaveis o container esta recebendo:
@@ -824,7 +833,7 @@ Regras atuais em `src/lib/formatting.ts`:
   - `frame-ancestors 'none'`;
   - `Referrer-Policy: no-referrer`;
   - `X-Content-Type-Options: nosniff`;
-- bootstrap admin apenas quando nao existem usuarios.
+- criacao do primeiro admin apenas via `scripts/create-admin.mjs`.
 
 ### Enrollment do agent
 
@@ -870,7 +879,6 @@ Regras atuais em `src/lib/formatting.ts`:
 - o sistema ja registra com prioridade reforcada eventos como:
   - criacao de admin;
   - troca de role;
-  - bootstrap admin;
   - novo agent registrado ou re-registrado;
   - uninstall do agent;
   - comandos sensiveis;
@@ -953,7 +961,7 @@ O alvo real do instalador atual sao distribuicoes Linux modernas.
 
 1. Acesse a aplicacao web.
 2. Confirme o healthcheck e o login.
-3. Verifique se o admin bootstrap foi criado.
+3. Crie o primeiro admin com `scripts/create-admin.mjs`.
 4. Gere um enrollment em `Maquinas`.
 5. Instale o agent em uma maquina Linux de teste.
 6. Confirme que a maquina aparece no painel.

@@ -3,14 +3,17 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Terminal } from "lucide-react";
 import { BrandLockup } from "@/components/Brand";
+import { DeploymentLockScreen } from "@/components/DeploymentLockScreen";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "@/components/ui/sonner";
 import { resolveDefaultAuthenticatedPath } from "@/lib/auth";
 import { loginAction, validateMfaLoginAction } from "@/lib/auth-api";
 import { useAuthState } from "@/lib/auth-client";
 import { APP_NAME } from "@/lib/brand";
+import { getDeploymentStatusAction } from "@/lib/deployment-api";
 
 export const Route = createFileRoute("/login")({
+  loader: () => getDeploymentStatusAction(),
   head: () => ({
     meta: [
       { title: APP_NAME },
@@ -21,6 +24,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  const deploymentStatus = Route.useLoaderData();
   const navigate = useNavigate();
   const router = useRouter();
   const login = useServerFn(loginAction);
@@ -90,6 +94,10 @@ function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (deploymentStatus.locked) {
+    return <DeploymentLockScreen status={deploymentStatus} />;
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">

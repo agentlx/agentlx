@@ -89,7 +89,8 @@ docker compose logs -f app
 
 7. Validate the panel:
    - Open the HTTPS URL.
-   - Sign in with the bootstrap admin or create one with `scripts/create-admin.mjs`.
+   - Create the first admin with `scripts/create-admin.mjs`.
+   - Sign in with that admin.
    - Enable MFA for the admin.
    - Confirm dashboard and logs load.
 

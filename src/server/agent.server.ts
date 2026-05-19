@@ -13,6 +13,7 @@ import { resolveLinuxDistribution } from "@/lib/agentlx";
 import { deriveMachineStatus } from "@/lib/formatting";
 import { appendAuditLog } from "./audit.server";
 import { dbQuery, withTransaction } from "./db.server";
+import { assertDeploymentReady } from "./env.server";
 import {
   decryptAgentToken,
   generateToken,
@@ -274,6 +275,7 @@ export async function authenticateAgentMessage(input: {
   rawBody: string;
   getHeader: (name: string) => string | null | undefined;
 }): Promise<AuthenticatedAgent> {
+  assertDeploymentReady();
   const agentId = readAgentAuthorizationId(input.authorizationHeader);
   if (!agentId) {
     throw toUnauthorized("Authorization Agent ausente.");
@@ -742,6 +744,7 @@ export async function registerAgent(
   input: AgentRegistrationInput,
   enrollmentToken: string,
 ): Promise<AgentRegistrationResponse> {
+  assertDeploymentReady();
   const requestedMachineId = input.machineId?.trim() || null;
   const requestedAgentId = input.agentId?.trim() || null;
   const agentSecret = generateToken("ags");

@@ -6,11 +6,11 @@ const DEFAULT_SECRETS_DIR = "secrets";
 
 function printUsage() {
   console.log(`Usage:
-  node scripts/generate-secrets.mjs [--format env|files] [--output-dir secrets] [--include-admin-password]
+  node scripts/generate-secrets.mjs [--format env|files] [--output-dir secrets]
 
 Examples:
   node scripts/generate-secrets.mjs
-  node scripts/generate-secrets.mjs --format files --output-dir secrets --include-admin-password
+  node scripts/generate-secrets.mjs --format files --output-dir secrets
 `);
 }
 
@@ -32,17 +32,11 @@ function secret(byteLength = 36) {
 }
 
 function buildSecrets() {
-  const values = {
+  return {
     POSTGRES_PASSWORD: secret(32),
     AGENTLX_PENDING_TOKEN_SECRET: secret(48),
     AGENTLX_MFA_ENCRYPTION_SECRET: secret(48),
   };
-
-  if (hasFlag("--include-admin-password")) {
-    values.AGENTLX_BOOTSTRAP_ADMIN_PASSWORD = secret(24);
-  }
-
-  return values;
 }
 
 async function writeSecretFiles(values, outputDir) {
@@ -51,7 +45,6 @@ async function writeSecretFiles(values, outputDir) {
     POSTGRES_PASSWORD: "postgres_password.txt",
     AGENTLX_PENDING_TOKEN_SECRET: "agentlx_pending_token_secret.txt",
     AGENTLX_MFA_ENCRYPTION_SECRET: "agentlx_mfa_encryption_secret.txt",
-    AGENTLX_BOOTSTRAP_ADMIN_PASSWORD: "agentlx_bootstrap_admin_password.txt",
   };
 
   for (const [key, value] of Object.entries(values)) {

@@ -1,13 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { randomBytes, randomUUID } from "node:crypto";
 import pg from "pg";
 import { defaultActionTemplates, type ServiceDetection } from "@/lib/agentlx";
-import { getAllScreenPermissions } from "@/lib/auth";
-import { appendAuditLog } from "./audit.server";
 import { createSeedState } from "./seed.server";
 import { getEnv } from "./env.server";
-import { hashPassword } from "./password.server";
 
 const { Pool } = pg;
 
@@ -315,85 +311,11 @@ async function seedDemoData() {
   }
 }
 
-async function ensureBootstrapAdmin() {
-  const existingUsers = await pool.query<{ count: string }>(
-    "SELECT COUNT(*)::text AS count FROM users",
-  );
-  if (Number(existingUsers.rows[0]?.count ?? 0) > 0) {
-    return;
-  }
-
-  const email = env.AGENTLX_BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || "admin@agentlx.local";
-  const fullName = env.AGENTLX_BOOTSTRAP_ADMIN_FULL_NAME?.trim() || "Administrador agentlx";
-  const generatedPassword = randomBytes(18).toString("base64url");
-  const password = env.AGENTLX_BOOTSTRAP_ADMIN_PASSWORD ?? generatedPassword;
-  const now = new Date().toISOString();
-
-  const userId = randomUUID();
-
-  await pool.query(
-    `
-      INSERT INTO users (
-        id,
-        full_name,
-        email,
-        password_hash,
-        role,
-        allowed_screens,
-        disabled,
-        session_version,
-        created_at,
-        updated_at
-      )
-      VALUES ($1, $2, $3, $4, 'admin', $5::jsonb, FALSE, 1, $6, $7)
-    `,
-    [
-      userId,
-      fullName,
-      email,
-      await hashPassword(password),
-      JSON.stringify(getAllScreenPermissions()),
-      now,
-      now,
-    ],
-  );
-
-  await appendAuditLog(
-    {
-      query: <T extends Record<string, unknown>>(text: string, params?: unknown[]) =>
-        pool.query<T>(text, params),
-    },
-    {
-      actorType: "system",
-      actorId: "bootstrap",
-      action: "user.admin.bootstrap.created",
-      severity: "critical",
-      message: `Conta bootstrap criou o administrador inicial ${email}.`,
-      createdAt: now,
-      metadata: {
-        alert: true,
-        userId,
-        targetEmail: email,
-      },
-    },
-  );
-
-  if (env.AGENTLX_BOOTSTRAP_ADMIN_PASSWORD) {
-    console.info(`[auth] bootstrap admin criado: ${email}`);
-    return;
-  }
-
-  console.warn(
-    `[auth] bootstrap admin criado: email=${email} senha-temporaria=${generatedPassword}`,
-  );
-}
-
 export async function ensureDatabaseReady() {
   if (!readyPromise) {
     readyPromise = (async () => {
       await runSchema();
       await seedDemoData();
-      await ensureBootstrapAdmin();
     })();
   }
   return readyPromise;

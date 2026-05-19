@@ -7,10 +7,13 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { DeploymentLockScreen } from "@/components/DeploymentLockScreen";
 import { PageLoading } from "@/components/PageLoading";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth-provider";
 import { APP_DESCRIPTION, APP_NAME, BRAND_ICON_DATA_URI } from "@/lib/brand";
+import { browserDeploymentFallback, type DeploymentSecurityState } from "@/lib/deployment";
 
 import appCss from "../styles.css?url";
 
@@ -111,13 +114,53 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [deploymentStatus, setDeploymentStatus] = useState<DeploymentSecurityState>(() =>
+    browserDeploymentFallback(),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDeploymentStatus() {
+      try {
+        const response = await fetch("/api/deployment-status", {
+          cache: "no-store",
+          headers: { accept: "application/json" },
+        });
+        if (!response.ok) {
+          return;
+        }
+        const nextStatus = (await response.json()) as DeploymentSecurityState;
+        if (!cancelled) {
+          setDeploymentStatus(nextStatus);
+        }
+      } catch {
+        if (!cancelled) {
+          setDeploymentStatus(browserDeploymentFallback());
+        }
+      }
+    }
+
+    void loadDeploymentStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider viewer={null}>
-        <Outlet />
-        <Toaster />
-      </AuthProvider>
+      {deploymentStatus.locked ? (
+        <>
+          <DeploymentLockScreen status={deploymentStatus} />
+          <Toaster />
+        </>
+      ) : (
+        <AuthProvider viewer={null}>
+          <Outlet />
+          <Toaster />
+        </AuthProvider>
+      )}
     </QueryClientProvider>
   );
 }

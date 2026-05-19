@@ -97,29 +97,60 @@ const envSchema = z.object({
     .transform((value) =>
       value == null ? process.env.NODE_ENV !== "production" : /^true$/i.test(value),
     ),
-  AGENTLX_BOOTSTRAP_ADMIN_EMAIL: optionalEnvString(z.string().email()),
-  AGENTLX_BOOTSTRAP_ADMIN_PASSWORD: optionalEnvString(z.string().min(8)),
-  AGENTLX_BOOTSTRAP_ADMIN_FULL_NAME: optionalEnvString(z.string().min(3).max(160)),
 });
 
 let cachedEnv: z.infer<typeof envSchema> | null = null;
+let warnedDeploymentLock = false;
+
+export const DEPLOYMENT_DOCS_URL = "https://doc.agentlx.com.br";
 
 export function getEnv() {
   if (!cachedEnv) {
     cachedEnv = envSchema.parse(applyFileEnv(process.env));
     process.env.TZ = cachedEnv.APP_TIME_ZONE;
-    if (cachedEnv.NODE_ENV === "production") {
-      const appOrigin = new URL(cachedEnv.APP_ORIGIN);
-      if (appOrigin.protocol !== "https:") {
-        throw new Error("APP_ORIGIN precisa usar HTTPS em producao.");
-      }
-      if (["localhost", "127.0.0.1", "0.0.0.0"].includes(appOrigin.hostname)) {
-        throw new Error("APP_ORIGIN precisa apontar para um host publico real em producao.");
-      }
-      if (cachedEnv.AGENTLX_PENDING_TOKEN_SECRET === "change-me-pending-token-secret") {
-        throw new Error("AGENTLX_PENDING_TOKEN_SECRET precisa ser alterado em producao.");
-      }
+    const deployment = getDeploymentSecurityState();
+    if (deployment.locked && !warnedDeploymentLock) {
+      warnedDeploymentLock = true;
+      console.warn(
+        `[security] agentlx iniciado em modo bloqueado: ${deployment.reasons.join(" ")}`,
+      );
     }
   }
   return cachedEnv;
+}
+
+export function getDeploymentSecurityState() {
+  const env = cachedEnv ?? envSchema.parse(applyFileEnv(process.env));
+  const appOrigin = new URL(env.APP_ORIGIN);
+  const reasons: string[] = [];
+
+  if (appOrigin.protocol !== "https:") {
+    reasons.push("APP_ORIGIN precisa usar HTTPS para liberar o painel.");
+  }
+
+  if (env.NODE_ENV === "production") {
+    if (["localhost", "127.0.0.1", "0.0.0.0"].includes(appOrigin.hostname)) {
+      reasons.push("APP_ORIGIN em producao precisa apontar para um host publico real.");
+    }
+
+    if (env.AGENTLX_PENDING_TOKEN_SECRET === "change-me-pending-token-secret") {
+      reasons.push("AGENTLX_PENDING_TOKEN_SECRET precisa ser alterado em producao.");
+    }
+  }
+
+  return {
+    locked: reasons.length > 0,
+    appOrigin: env.APP_ORIGIN,
+    docsUrl: DEPLOYMENT_DOCS_URL,
+    reasons,
+  };
+}
+
+export function assertDeploymentReady() {
+  const deployment = getDeploymentSecurityState();
+  if (deployment.locked) {
+    throw new Error(
+      `Configuracao HTTPS obrigatoria. Acesse ${DEPLOYMENT_DOCS_URL} para concluir a publicacao do painel.`,
+    );
+  }
 }
