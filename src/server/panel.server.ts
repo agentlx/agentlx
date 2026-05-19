@@ -3124,12 +3124,12 @@ export async function queueMachineSync(input: {
   const result = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
-      throw new Error("MÃ¡quina nÃ£o encontrada.");
+      throw new Error("Máquina não encontrada.");
     }
 
     const machineView = toMachineView(machine);
     if (machineView.status === "offline") {
-      throw new Error("A mÃ¡quina estÃ¡ offline. Aguarde um heartbeat antes de sincronizar.");
+      throw new Error("A máquina está offline. Aguarde um heartbeat antes de sincronizar.");
     }
 
     await client.query("SELECT id FROM machines WHERE id = $1 FOR UPDATE", [machine.id]);
@@ -3153,7 +3153,7 @@ export async function queueMachineSync(input: {
       const remainingMs =
         MACHINE_SYNC_COOLDOWN_MS - (Date.now() - new Date(recentRequestedAt).getTime());
       const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
-      throw new Error(`Aguarde ${remainingSeconds}s antes de atualizar esta mÃ¡quina novamente.`);
+      throw new Error(`Aguarde ${remainingSeconds}s antes de atualizar esta máquina novamente.`);
     }
 
     const executionId = crypto.randomUUID();
@@ -3192,7 +3192,7 @@ export async function queueMachineSync(input: {
       executionId,
       machineId: machine.id,
       machineHostname: machine.hostname,
-      message: `Conta ${input.requestedBy} solicitou sincronizaÃ§Ã£o imediata do agent na mÃ¡quina ${machine.hostname}.`,
+      message: `Conta ${input.requestedBy} solicitou sincronização imediata do agent na máquina ${machine.hostname}.`,
       createdAt: requestedAt,
       severity: "notice",
       metadata: {
@@ -3219,7 +3219,7 @@ export async function queueMachineSync(input: {
       requestedAt,
       availableAt: requestedAt,
       isScheduled: false,
-      description: `SincronizaÃ§Ã£o solicitada por ${input.requestedBy} em ${machine.hostname} em ${formatExecutionDate(requestedAt)}.`,
+      description: `Sincronização solicitada por ${input.requestedBy} em ${machine.hostname} em ${formatExecutionDate(requestedAt)}.`,
     };
   });
 

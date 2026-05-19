@@ -1184,7 +1184,7 @@ export async function pollPendingExecutions(
     const now = new Date().toISOString();
     const machine = await loadMachine(agent.machine_id);
     if (!machine) {
-      throw new Error("MÃ¡quina vinculada ao agent nÃ£o foi encontrada.");
+      throw new Error("Máquina vinculada ao agent não foi encontrada.");
     }
 
     await markAgentTokenUsage(client, agent, now);
@@ -1328,7 +1328,7 @@ export async function submitExecutionResult(
     const requestCompletedAt = new Date().toISOString();
     const machine = await loadMachine(agent.machine_id);
     if (!machine) {
-      throw new Error("MÃ¡quina vinculada ao agent nÃ£o foi encontrada.");
+      throw new Error("Máquina vinculada ao agent não foi encontrada.");
     }
 
     await markAgentTokenUsage(client, agent, requestCompletedAt);

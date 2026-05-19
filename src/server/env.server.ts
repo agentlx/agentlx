@@ -119,13 +119,24 @@ export function getEnv() {
   return cachedEnv;
 }
 
-export function getDeploymentSecurityState() {
+export function getDeploymentSecurityState(request?: Request) {
   const env = cachedEnv ?? envSchema.parse(applyFileEnv(process.env));
   const appOrigin = new URL(env.APP_ORIGIN);
   const reasons: string[] = [];
 
   if (appOrigin.protocol !== "https:") {
     reasons.push("APP_ORIGIN precisa usar HTTPS para liberar o painel.");
+  }
+
+  if (request) {
+    const requestUrl = new URL(request.url);
+    if (requestUrl.protocol !== "https:") {
+      reasons.push("A aplicacao foi acessada por HTTP. Use a origem HTTPS configurada.");
+    }
+
+    if (requestUrl.origin !== appOrigin.origin) {
+      reasons.push("A origem acessada precisa corresponder exatamente ao APP_ORIGIN.");
+    }
   }
 
   if (env.NODE_ENV === "production") {
