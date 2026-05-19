@@ -17,6 +17,9 @@ const deploymentLockMiddleware = createMiddleware().server(async ({ next, reques
       message: "Configure APP_ORIGIN com HTTPS para liberar o painel agentlx.",
       docsUrl: deployment.docsUrl,
       appOrigin: deployment.appOrigin,
+      detectedOrigin: deployment.detectedOrigin,
+      trustedProxy: deployment.trustedProxy,
+      headers: deployment.headers,
       reasons: deployment.reasons,
     };
 
@@ -43,7 +46,8 @@ const deploymentLockMiddleware = createMiddleware().server(async ({ next, reques
     <main style="max-width: 680px; padding: 32px;">
       <p style="margin: 0 0 12px; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: .14em;">HTTPS required</p>
       <h1 style="margin: 0 0 16px; font-size: 32px;">agentlx bloqueado</h1>
-      <p style="line-height: 1.6; color: #cbd5e1;">O painel foi bloqueado porque a origem acessada nao corresponde a uma publicacao HTTPS segura.</p>
+      <p style="line-height: 1.6; color: #cbd5e1;">O painel foi bloqueado porque a origem percebida nao corresponde ao APP_ORIGIN.</p>
+      <p style="line-height: 1.6; color: #cbd5e1;">APP_ORIGIN: ${deployment.appOrigin}<br />Origem percebida: ${deployment.detectedOrigin}<br />Trust proxy: ${deployment.trustedProxy ? "ativo" : "inativo"}</p>
       <pre style="white-space: pre-wrap; overflow-wrap: anywhere; background: #0f172a; border: 1px solid #334155; padding: 16px; border-radius: 8px;">${deployment.reasons.join("\n")}</pre>
     </main>
   </body>

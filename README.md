@@ -401,6 +401,7 @@ Os arquivos de exemplo oficiais sao:
 | `HOST`                               | nao         | host HTTP do app                                                                                     |
 | `PORT`                               | nao         | porta HTTP do app                                                                                    |
 | `APP_ORIGIN`                         | sim         | origem publica usada por CSRF, SSE, WebSocket e validacao de origem; em producao deve ser HTTPS real |
+| `AGENTLX_TRUST_PROXY`                | nao         | quando `true`, usa headers `X-Forwarded-*` para detectar a origem publica atras de reverse proxy     |
 | `APP_TIME_ZONE`                      | nao         | fuso horario IANA usado pelo app e pela sessao PostgreSQL; default `America/Sao_Paulo`               |
 | `DATABASE_URL`                       | sim         | conexao PostgreSQL                                                                                   |
 | `DATABASE_URL_FILE`                  | nao         | caminho de arquivo/secret para `DATABASE_URL`                                                        |
@@ -451,6 +452,7 @@ Para producao, use uma origem publica real com HTTPS e mantenha o seed desligado
 
 ```env
 APP_ORIGIN=https://ops.seudominio.com
+AGENTLX_TRUST_PROXY=true
 APP_TIME_ZONE=America/Sao_Paulo
 DATABASE_SSL=true
 AGENTLX_SEED_ON_BOOT=false

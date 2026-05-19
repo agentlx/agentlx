@@ -4,6 +4,18 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.5 - 2026-05-19
+
+### Added
+
+- Add `AGENTLX_TRUST_PROXY=true` support for reverse proxy deployments, using `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port`, and `X-Forwarded-Ssl` to detect the public origin.
+- Expand `/api/deployment-status` with `trustedProxy`, `detectedOrigin`, and forwarded header diagnostics.
+
+### Changed
+
+- Improve deployment lock diagnostics when the perceived request origin does not match `APP_ORIGIN`.
+- Document trust proxy configuration in examples, Docker Compose files, installation docs, and hardening checklist.
+
 ## 1.0.4 - 2026-05-19
 
 ### Fixed

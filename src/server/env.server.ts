@@ -55,6 +55,13 @@ function optionalEnvString(schema: z.ZodString) {
   }, schema.optional());
 }
 
+function envBoolean(defaultValue: boolean) {
+  return z
+    .string()
+    .optional()
+    .transform((value) => (value == null ? defaultValue : /^true$/i.test(value)));
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   HOST: z.string().min(1).default("0.0.0.0"),
@@ -85,6 +92,7 @@ const envSchema = z.object({
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
   DATABASE_CONNECT_RETRIES: z.coerce.number().int().positive().default(20),
   DATABASE_CONNECT_RETRY_DELAY_MS: z.coerce.number().int().positive().default(2000),
+  AGENTLX_TRUST_PROXY: envBoolean(false),
   AGENTLX_PENDING_TOKEN_SECRET: z.string().min(16).default("change-me-pending-token-secret"),
   AGENTLX_MFA_ENCRYPTION_SECRET: optionalEnvString(z.string().min(16)),
   AGENTLX_MFA_ENCRYPTION_SECRET_PREVIOUS: z.string().default(""),
@@ -104,6 +112,79 @@ let warnedDeploymentLock = false;
 
 export const DEPLOYMENT_DOCS_URL = "https://doc.agentlx.com.br";
 
+function firstHeaderValue(value: string | null) {
+  return (
+    value
+      ?.split(",")
+      .map((item) => item.trim())
+      .find(Boolean) ?? null
+  );
+}
+
+function cleanProtocol(value: string | null) {
+  const protocol = value?.replace(/:$/, "").toLowerCase();
+  return protocol === "https" || protocol === "http" ? protocol : null;
+}
+
+function hostHasPort(host: string) {
+  if (host.startsWith("[")) {
+    return /\]:\d+$/.test(host);
+  }
+  return host.includes(":");
+}
+
+function appendForwardedPort(protocol: string, host: string, port: string | null) {
+  if (!port || !/^\d+$/.test(port) || hostHasPort(host)) {
+    return host;
+  }
+
+  if ((protocol === "https" && port === "443") || (protocol === "http" && port === "80")) {
+    return host;
+  }
+
+  return `${host}:${port}`;
+}
+
+function getDeploymentRequestHeaders(request?: Request) {
+  return {
+    host: firstHeaderValue(request?.headers.get("host") ?? null),
+    xForwardedProto: firstHeaderValue(request?.headers.get("x-forwarded-proto") ?? null),
+    xForwardedHost: firstHeaderValue(request?.headers.get("x-forwarded-host") ?? null),
+    xForwardedPort: firstHeaderValue(request?.headers.get("x-forwarded-port") ?? null),
+    xForwardedSsl: firstHeaderValue(request?.headers.get("x-forwarded-ssl") ?? null),
+  };
+}
+
+function getDetectedRequestOrigin(request: Request | undefined, trustedProxy: boolean) {
+  const headers = getDeploymentRequestHeaders(request);
+  if (!request) {
+    return {
+      detectedOrigin: "",
+      headers,
+    };
+  }
+
+  const requestUrl = new URL(request.url);
+  if (!trustedProxy) {
+    return {
+      detectedOrigin: requestUrl.origin,
+      headers,
+    };
+  }
+
+  const forwardedProtocol =
+    cleanProtocol(headers.xForwardedProto) ??
+    (headers.xForwardedSsl?.toLowerCase() === "on" ? "https" : null);
+  const protocol = forwardedProtocol ?? requestUrl.protocol.replace(/:$/, "");
+  const host = headers.xForwardedHost ?? headers.host ?? requestUrl.host;
+  const detectedHost = appendForwardedPort(protocol, host, headers.xForwardedPort);
+
+  return {
+    detectedOrigin: `${protocol}://${detectedHost}`,
+    headers,
+  };
+}
+
 export function getEnv() {
   if (!cachedEnv) {
     cachedEnv = envSchema.parse(applyFileEnv(process.env));
@@ -122,6 +203,7 @@ export function getEnv() {
 export function getDeploymentSecurityState(request?: Request) {
   const env = cachedEnv ?? envSchema.parse(applyFileEnv(process.env));
   const appOrigin = new URL(env.APP_ORIGIN);
+  const { detectedOrigin, headers } = getDetectedRequestOrigin(request, env.AGENTLX_TRUST_PROXY);
   const reasons: string[] = [];
 
   if (appOrigin.protocol !== "https:") {
@@ -129,13 +211,17 @@ export function getDeploymentSecurityState(request?: Request) {
   }
 
   if (request) {
-    const requestUrl = new URL(request.url);
-    if (requestUrl.protocol !== "https:") {
-      reasons.push("A aplicacao foi acessada por HTTP. Use a origem HTTPS configurada.");
+    const detectedUrl = new URL(detectedOrigin);
+    if (detectedUrl.protocol !== "https:") {
+      reasons.push(
+        `A origem percebida foi ${detectedOrigin}, mas o painel exige HTTPS. Se estiver usando reverse proxy, confira X-Forwarded-Proto.`,
+      );
     }
 
-    if (requestUrl.origin !== appOrigin.origin) {
-      reasons.push("A origem acessada precisa corresponder exatamente ao APP_ORIGIN.");
+    if (detectedUrl.origin !== appOrigin.origin) {
+      reasons.push(
+        `A origem percebida (${detectedOrigin}) precisa corresponder exatamente ao APP_ORIGIN (${appOrigin.origin}).`,
+      );
     }
   }
 
@@ -152,7 +238,10 @@ export function getDeploymentSecurityState(request?: Request) {
   return {
     locked: reasons.length > 0,
     appOrigin: env.APP_ORIGIN,
+    detectedOrigin: detectedOrigin || env.APP_ORIGIN,
     docsUrl: DEPLOYMENT_DOCS_URL,
+    trustedProxy: env.AGENTLX_TRUST_PROXY,
+    headers,
     reasons,
   };
 }

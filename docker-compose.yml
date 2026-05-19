@@ -10,6 +10,7 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      AGENTLX_TRUST_PROXY: ${AGENTLX_TRUST_PROXY:-false}
       APP_TIME_ZONE: ${APP_TIME_ZONE:-America/Sao_Paulo}
       TZ: ${APP_TIME_ZONE:-America/Sao_Paulo}
       PGTZ: ${APP_TIME_ZONE:-America/Sao_Paulo}

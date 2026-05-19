@@ -66,6 +66,7 @@ cd /opt/agentlx
 
 ```env
 APP_ORIGIN=https://agentlx.example.com
+AGENTLX_TRUST_PROXY=true
 APP_TIME_ZONE=UTC
 PORT=3000
 POSTGRES_DB=agentlx

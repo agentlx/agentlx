@@ -101,6 +101,69 @@ const contentTypes = {
 
 const staticExtensions = new Set(Object.keys(contentTypes));
 const appOrigin = (process.env.APP_ORIGIN || "http://localhost:3000").trim();
+const trustProxy = /^true$/i.test(process.env.AGENTLX_TRUST_PROXY || "");
+
+function firstHeaderValue(value) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return (
+    rawValue
+      ?.toString()
+      .split(",")
+      .map((item) => item.trim())
+      .find(Boolean) || ""
+  );
+}
+
+function cleanProtocol(value) {
+  const protocol = value.replace(/:$/, "").toLowerCase();
+  return protocol === "https" || protocol === "http" ? protocol : "";
+}
+
+function hostHasPort(value) {
+  if (value.startsWith("[")) {
+    return /\]:\d+$/.test(value);
+  }
+  return value.includes(":");
+}
+
+function appendForwardedPort(protocol, hostValue, forwardedPort) {
+  if (!forwardedPort || !/^\d+$/.test(forwardedPort) || hostHasPort(hostValue)) {
+    return hostValue;
+  }
+
+  if (
+    (protocol === "https" && forwardedPort === "443") ||
+    (protocol === "http" && forwardedPort === "80")
+  ) {
+    return hostValue;
+  }
+
+  return `${hostValue}:${forwardedPort}`;
+}
+
+function detectRequestOrigin(req) {
+  const fallbackHost = firstHeaderValue(req.headers.host) || `${host}:${port}`;
+  if (!trustProxy) {
+    const protocol = cleanProtocol(firstHeaderValue(req.headers["x-forwarded-proto"])) || "http";
+    return {
+      origin: `${protocol}://${fallbackHost}`,
+      protocol,
+    };
+  }
+
+  const forwardedProtocol =
+    cleanProtocol(firstHeaderValue(req.headers["x-forwarded-proto"])) ||
+    (firstHeaderValue(req.headers["x-forwarded-ssl"]).toLowerCase() === "on" ? "https" : "");
+  const protocol = forwardedProtocol || "http";
+  const forwardedHost = firstHeaderValue(req.headers["x-forwarded-host"]);
+  const forwardedPort = firstHeaderValue(req.headers["x-forwarded-port"]);
+  const publicHost = appendForwardedPort(protocol, forwardedHost || fallbackHost, forwardedPort);
+
+  return {
+    origin: `${protocol}://${publicHost}`,
+    protocol,
+  };
+}
 
 function buildSecurityHeaders(isSecureRequest) {
   const headers = {
@@ -147,9 +210,10 @@ function isStaticAssetRequest(pathname) {
 }
 
 async function tryServeStaticAsset(req, res) {
-  const requestUrl = new URL(req.url || "/", `http://${req.headers.host || `${host}:${port}`}`);
+  const detectedRequest = detectRequestOrigin(req);
+  const requestUrl = new URL(req.url || "/", detectedRequest.origin);
   const pathname = decodeURIComponent(requestUrl.pathname);
-  const secureRequest = (req.headers["x-forwarded-proto"] || "").toString().includes("https");
+  const secureRequest = detectedRequest.protocol === "https";
   const normalizedPath = normalize(pathname)
     .replace(/^(\.\.[/\\])+/, "")
     .replace(/^[/\\]+/, "");
@@ -203,8 +267,8 @@ const nodeServer = http.createServer(async (req, res) => {
       return;
     }
 
-    const protocol = req.headers["x-forwarded-proto"] || "http";
-    const url = new URL(req.url || "/", `${protocol}://${req.headers.host || `${host}:${port}`}`);
+    const detectedRequest = detectRequestOrigin(req);
+    const url = new URL(req.url || "/", detectedRequest.origin);
     const body = await readBody(req);
 
     const request = new Request(url, {
@@ -223,7 +287,7 @@ const nodeServer = http.createServer(async (req, res) => {
     const response = await fetchHandler(request, {}, {});
     res.statusCode = response.status;
     res.statusMessage = response.statusText;
-    applyNodeSecurityHeaders(res, protocol === "https");
+    applyNodeSecurityHeaders(res, detectedRequest.protocol === "https");
 
     const getSetCookie =
       typeof response.headers.getSetCookie === "function"
