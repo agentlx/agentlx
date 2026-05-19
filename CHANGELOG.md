@@ -4,6 +4,12 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.3 - 2026-05-19
+
+### Changed
+
+- Center the HTTP deployment lock screen and remove the secondary active-locks panel.
+
 ## 0.1.2 - 2026-05-18
 
 ### Fixed
