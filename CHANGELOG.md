@@ -4,7 +4,7 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
-## 0.1.1 - 2026-05-18
+## 0.1.2 - 2026-05-18
 
 ### Fixed
 
