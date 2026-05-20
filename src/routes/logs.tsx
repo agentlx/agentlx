@@ -17,7 +17,11 @@ import { AppShell, Crumb, StatusLabel } from "@/components/AppShell";
 import { toast } from "@/components/ui/sonner";
 import { APP_NAME } from "@/lib/brand";
 import type { ExecutionLogView, RecurringScheduleView } from "@/lib/agentlx";
-import { cancelRecurringTemplateScheduleAction, getExecutionLogsData } from "@/lib/panel-api";
+import {
+  cancelRecurringTemplateScheduleAction,
+  getExecutionLogsData,
+  getExecutionLogsPageAction,
+} from "@/lib/panel-api";
 import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/logs")({
@@ -69,7 +73,10 @@ type ScheduledListItem =
 function Logs() {
   const router = useRouter();
   const cancelRecurringTemplateSchedule = useServerFn(cancelRecurringTemplateScheduleAction);
-  const { executions, scheduled, recurringSchedules, audits } = Route.useLoaderData();
+  const loadExecutionLogsPage = useServerFn(getExecutionLogsPageAction);
+  const loaderData = Route.useLoaderData();
+  const [feedData, setFeedData] = useState(loaderData);
+  const { executions, scheduled, recurringSchedules, audits } = feedData;
   const [view, setView] = useState<"events" | "audits" | "scheduled">("events");
   const [filter, setFilter] = useState<"all" | "success" | "failed" | "queued">("all");
   const [searchInput, setSearchInput] = useState("");
@@ -81,6 +88,8 @@ function Logs() {
   const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
   const [expandedText, setExpandedText] = useState<{ title: string; content: string } | null>(null);
   const [cancellingScheduleId, setCancellingScheduleId] = useState<string | null>(null);
+  const [loadingMoreEvents, setLoadingMoreEvents] = useState(false);
+  const [loadingMoreAudits, setLoadingMoreAudits] = useState(false);
 
   const filteredEvents = useMemo(
     () =>
@@ -166,6 +175,79 @@ function Logs() {
 
   const applySearch = () => {
     setAppliedSearch(searchInput.trim());
+  };
+
+  const loadMoreEvents = async () => {
+    const cursor = feedData.executionsPageInfo.nextCursor;
+    if (!cursor || loadingMoreEvents) {
+      return;
+    }
+
+    setLoadingMoreEvents(true);
+    try {
+      const next = await loadExecutionLogsPage({
+        data: { executionsCursor: cursor, auditsCursor: null },
+      });
+      setFeedData((current) => ({
+        ...current,
+        executions: [
+          ...current.executions,
+          ...next.executions.filter(
+            (execution) =>
+              !current.executions.some((currentExecution) => currentExecution.id === execution.id),
+          ),
+        ],
+        scheduled: [
+          ...current.scheduled,
+          ...next.scheduled.filter(
+            (execution) =>
+              !current.scheduled.some((currentExecution) => currentExecution.id === execution.id),
+          ),
+        ],
+        recurringSchedules: current.recurringSchedules,
+        audits: current.audits,
+        executionsPageInfo: next.executionsPageInfo,
+      }));
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Nao foi possivel carregar mais eventos.",
+      );
+    } finally {
+      setLoadingMoreEvents(false);
+    }
+  };
+
+  const loadMoreAudits = async () => {
+    const cursor = feedData.auditsPageInfo.nextCursor;
+    if (!cursor || loadingMoreAudits) {
+      return;
+    }
+
+    setLoadingMoreAudits(true);
+    try {
+      const next = await loadExecutionLogsPage({
+        data: { executionsCursor: null, auditsCursor: cursor },
+      });
+      setFeedData((current) => ({
+        ...current,
+        executions: current.executions,
+        scheduled: current.scheduled,
+        recurringSchedules: current.recurringSchedules,
+        audits: [
+          ...current.audits,
+          ...next.audits.filter(
+            (audit) => !current.audits.some((currentAudit) => currentAudit.id === audit.id),
+          ),
+        ],
+        auditsPageInfo: next.auditsPageInfo,
+      }));
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Nao foi possivel carregar mais auditorias.",
+      );
+    } finally {
+      setLoadingMoreAudits(false);
+    }
   };
 
   const cancelSchedule = async (scheduleId: string) => {
@@ -362,6 +444,17 @@ function Logs() {
               totalPages={pagedEvents.totalPages}
               onPageChange={setEventsPage}
             />
+            {feedData.executionsPageInfo.hasMore && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => void loadMoreEvents()}
+                  disabled={loadingMoreEvents}
+                  className="rounded-2xl border border-border px-3 py-1.5 text-xs font-mono text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+                >
+                  {loadingMoreEvents ? "Carregando..." : "Carregar mais eventos"}
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -573,6 +666,17 @@ function Logs() {
               totalPages={pagedAudits.totalPages}
               onPageChange={setAuditsPage}
             />
+            {feedData.auditsPageInfo.hasMore && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => void loadMoreAudits()}
+                  disabled={loadingMoreAudits}
+                  className="rounded-2xl border border-border px-3 py-1.5 text-xs font-mono text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+                >
+                  {loadingMoreAudits ? "Carregando..." : "Carregar mais auditorias"}
+                </button>
+              </div>
+            )}
           </section>
         )}
 

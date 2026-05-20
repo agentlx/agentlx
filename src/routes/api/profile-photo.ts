@@ -36,7 +36,10 @@ export const Route = createFileRoute("/api/profile-photo")({
           headers.set("ETag", etag);
         }
 
-        return new Response(photo.data, { headers });
+        const body = new Uint8Array(photo.data.byteLength);
+        body.set(photo.data);
+
+        return new Response(body, { headers });
       },
     },
   },

@@ -4,6 +4,28 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.6 - 2026-05-19
+
+### Added
+
+- Add versioned database migrations, startup migration tracking, and periodic cleanup for sessions, nonces, enrollment tokens, old inventories, and retained execution output.
+- Add login brute-force protection with IP/e-mail rate limiting, progressive temporary lockout, and separate blocked-attempt audit events.
+- Add audit integrity verification through chained hashes, HMAC anchors, and the `npm run audit:verify` helper.
+- Add cursor-based pagination for machines, execution logs, and audit logs.
+
+### Changed
+
+- Harden HTTP body handling with pre-parse payload limits for JSON, agent result payloads, terminal control requests, uploads, and the Node adapter.
+- Harden Linux agent secret storage and systemd service isolation with restricted config permissions and systemd sandboxing directives.
+- Harden Docker and production defaults by disabling demo seed on boot, avoiding unsafe default database passwords, keeping Postgres unexposed by default, and supporting validated database SSL CA configuration.
+- Store profile photos as binary data and stream HTTP responses instead of buffering full response bodies in the server adapter.
+
+### Fixed
+
+- Fix user creation to insert all expected MFA, profile photo, account status, session version, and timestamp fields.
+- Prevent external API and terminal routes from leaking internal `error.message` details.
+- Make terminal WebSocket handlers resilient to invalid payloads and add explicit privileged-command confirmations and audit trail events.
+
 ## 1.0.5 - 2026-05-19
 
 ### Added

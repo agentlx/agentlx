@@ -1,9 +1,10 @@
-import type {
+﻿import type {
   AuditLogView,
   ActionTemplateView,
   CreateMachineGroupInput,
   CreateMachineEnrollmentInput,
   CreateActionTemplateInput,
+  CursorPageInfo,
   DashboardView,
   ExecutionFeedView,
   ExecutionDetailView,
@@ -21,6 +22,7 @@ import type {
   MachineControlAction,
   MachineControlActionInput,
   MachineDetailView,
+  MachineStatus,
   MachineView,
   PendingMachineEnrollmentCreateView,
   PendingMachineEnrollmentView,
@@ -66,6 +68,26 @@ const TEMPLATE_LIST_LIMIT = 300;
 const MACHINE_DETAIL_EXECUTION_LIMIT = 80;
 const DASHBOARD_EXECUTION_LIMIT = 6;
 const PENDING_ENROLLMENT_LIMIT = 100;
+const DEFAULT_CURSOR_PAGE_LIMIT = 50;
+const MAX_CURSOR_PAGE_LIMIT = 100;
+
+type TimestampValue = string | Date;
+
+type MachinePageInput = {
+  cursor?: string | null;
+  limit?: number;
+  search?: string;
+  status?: "all" | MachineStatus;
+};
+
+type ExecutionFeedInput = {
+  executionsCursor?: string | null;
+  auditsCursor?: string | null;
+  limit?: number;
+  auditsLimit?: number;
+};
+
+type CursorKind = "machines" | "executions" | "audits";
 
 function buildAgentSelfUninstallCommand() {
   return `
@@ -182,7 +204,7 @@ type MachineRow = {
   ram_total_gb: number;
   disk_percent: number;
   scheduled_task_limit: number;
-  last_seen_at: string;
+  last_seen_at: TimestampValue;
   services: string[];
 };
 
@@ -219,16 +241,16 @@ type ExecutionRow = {
   template_name: string;
   command: string;
   schedule_id: string | null;
-  schedule_run_at: string | null;
-  requested_at: string;
-  started_at: string | null;
-  finished_at: string | null;
+  schedule_run_at: TimestampValue | null;
+  requested_at: TimestampValue;
+  started_at: TimestampValue | null;
+  finished_at: TimestampValue | null;
   duration_ms: number;
   status: "queued" | "dispatched" | "running" | "success" | "failed" | "cancelled";
   output: string;
   error_output: string;
   requested_by: string;
-  available_at: string;
+  available_at: TimestampValue;
 };
 
 type ScheduleRow = {
@@ -243,10 +265,10 @@ type ScheduleRow = {
   interval_hours: number;
   status: "active" | "paused" | "cancelled";
   requested_by: string;
-  created_at: string;
-  starts_at: string;
-  next_run_at: string;
-  last_run_at: string | null;
+  created_at: TimestampValue;
+  starts_at: TimestampValue;
+  next_run_at: TimestampValue;
+  last_run_at: TimestampValue | null;
   last_execution_id: string | null;
   failure_count: number;
 };
@@ -257,7 +279,7 @@ type AuditRow = {
   actor_type: "panel" | "agent" | "system";
   actor_id: string;
   message: string;
-  created_at: string;
+  created_at: TimestampValue;
   execution_id: string | null;
   machine_id: string | null;
   machine_hostname: string | null;
@@ -266,8 +288,8 @@ type AuditRow = {
 type PendingEnrollmentRow = {
   id: string;
   token_encrypted: string;
-  created_at: string;
-  expires_at: string;
+  created_at: TimestampValue;
+  expires_at: TimestampValue;
   install_dir: string;
   location: string;
   agent_name: string;
@@ -277,8 +299,8 @@ type GroupRow = {
   id: string;
   name: string;
   description: string;
-  created_at: string;
-  updated_at: string;
+  created_at: TimestampValue;
+  updated_at: TimestampValue;
   owner_count: number;
   member_count: number;
   machine_count: number;
@@ -310,17 +332,68 @@ type DbClient = {
 };
 
 function normalizeDisplayText(value: string) {
-  if (!value || !/[ÃÂ�]/.test(value)) {
+  if (!value || !/[ÃƒÃ‚ï¿½]/.test(value)) {
     return value;
   }
 
   try {
     const repaired = Buffer.from(value, "latin1").toString("utf8");
-    const suspiciousScore = (text: string) => (text.match(/[ÃÂ�]/g) ?? []).length;
+    const suspiciousScore = (text: string) => (text.match(/[ÃƒÃ‚ï¿½]/g) ?? []).length;
     return suspiciousScore(repaired) < suspiciousScore(value) ? repaired : value;
   } catch {
     return value;
   }
+}
+
+function timestampText(value: TimestampValue | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function normalizePageLimit(value: number | undefined, fallback = DEFAULT_CURSOR_PAGE_LIMIT) {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(Math.trunc(value ?? fallback), 1), MAX_CURSOR_PAGE_LIMIT);
+}
+
+function encodeCursor(kind: CursorKind, values: string[]) {
+  return Buffer.from(JSON.stringify({ kind, values }), "utf8").toString("base64url");
+}
+
+function decodeCursor(kind: CursorKind, cursor?: string | null) {
+  if (!cursor) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as {
+      kind?: unknown;
+      values?: unknown;
+    };
+    if (
+      payload.kind !== kind ||
+      !Array.isArray(payload.values) ||
+      !payload.values.every((value) => typeof value === "string")
+    ) {
+      throw new Error("invalid cursor");
+    }
+    return payload.values;
+  } catch {
+    throw new Error("Cursor invalido.");
+  }
+}
+
+function pageInfo(nextCursor: string | null, limit: number): CursorPageInfo {
+  return {
+    nextCursor,
+    hasMore: nextCursor !== null,
+    limit,
+  };
 }
 
 function toStringList(value: unknown): string[] {
@@ -335,8 +408,9 @@ function toMachineView(
   machine: MachineRow,
   options: { canEditScheduledTaskLimit?: boolean } = {},
 ): MachineView {
+  const lastSeenAt = timestampText(machine.last_seen_at);
   const status = deriveMachineStatus({
-    lastSeenAt: machine.last_seen_at,
+    lastSeenAt,
     cpuPercent: machine.cpu_percent,
     diskPercent: machine.disk_percent,
     ramUsedGb: machine.ram_used_gb,
@@ -354,7 +428,7 @@ function toMachineView(
     distroVersion: machine.distro_version,
     status,
     uptime: formatUptime(machine.uptime_sec),
-    lastSeen: formatRelativeTime(machine.last_seen_at),
+    lastSeen: formatRelativeTime(lastSeenAt),
     services: machine.services,
     cpu: machine.cpu_percent,
     ramUsed: machine.ram_used_gb,
@@ -363,7 +437,7 @@ function toMachineView(
     kernel: machine.kernel,
     arch: machine.arch,
     location: machine.location,
-    lastSeenAt: machine.last_seen_at,
+    lastSeenAt,
     canDelete: false,
     scheduledTaskLimit: machine.scheduled_task_limit,
     canEditScheduledTaskLimit: options.canEditScheduledTaskLimit ?? false,
@@ -386,13 +460,17 @@ function toTemplateView(template: TemplateRow): ActionTemplateView {
 }
 
 function toExecutionLogView(execution: ExecutionRow): ExecutionLogView {
-  const isScheduled = execution.available_at > execution.requested_at;
+  const requestedAt = timestampText(execution.requested_at);
+  const availableAt = timestampText(execution.available_at);
+  const startedAt = timestampText(execution.started_at);
+  const finishedAt = timestampText(execution.finished_at);
+  const isScheduled = availableAt > requestedAt;
   const description = isScheduled
     ? `Agendado por ${execution.requested_by} para ${execution.machine_hostname} em ${formatExecutionDate(
-        execution.available_at,
+        availableAt,
       )}.`
     : `Executado por ${execution.requested_by} em ${execution.machine_hostname} em ${formatExecutionDate(
-        execution.requested_at,
+        requestedAt,
       )}.`;
 
   return {
@@ -403,17 +481,15 @@ function toExecutionLogView(execution: ExecutionRow): ExecutionLogView {
     machineId: execution.machine_id,
     machineHostname: execution.machine_hostname,
     machineAvailable: execution.machine_exists,
-    executedAt: formatExecutionDate(
-      execution.finished_at ?? execution.started_at ?? execution.requested_at,
-    ),
+    executedAt: formatExecutionDate(finishedAt || startedAt || requestedAt),
     durationMs: execution.duration_ms,
     status: execution.status,
     output: normalizeDisplayText(execution.output),
     errorOutput: normalizeDisplayText(execution.error_output),
     command: normalizeDisplayText(execution.command),
     requestedBy: execution.requested_by,
-    requestedAt: execution.requested_at,
-    availableAt: execution.available_at,
+    requestedAt,
+    availableAt,
     isScheduled,
     description: normalizeDisplayText(description),
   };
@@ -433,6 +509,7 @@ function intervalDaysToHours(intervalDays: number) {
 }
 
 function toRecurringScheduleView(schedule: ScheduleRow): RecurringScheduleView {
+  const lastRunAt = timestampText(schedule.last_run_at);
   return {
     id: schedule.id,
     templateId: schedule.template_id ?? "template-removed",
@@ -441,10 +518,10 @@ function toRecurringScheduleView(schedule: ScheduleRow): RecurringScheduleView {
     machineHostname: schedule.machine_hostname,
     machineAvailable: schedule.machine_exists,
     requestedBy: schedule.requested_by,
-    createdAt: formatExecutionDate(schedule.created_at),
-    startsAt: formatExecutionDate(schedule.starts_at),
-    nextRunAt: formatExecutionDate(schedule.next_run_at),
-    lastRunAt: schedule.last_run_at ? formatExecutionDate(schedule.last_run_at) : null,
+    createdAt: formatExecutionDate(timestampText(schedule.created_at)),
+    startsAt: formatExecutionDate(timestampText(schedule.starts_at)),
+    nextRunAt: formatExecutionDate(timestampText(schedule.next_run_at)),
+    lastRunAt: lastRunAt ? formatExecutionDate(lastRunAt) : null,
     lastExecutionId: schedule.last_execution_id,
     intervalHours: schedule.interval_hours,
     status: schedule.status,
@@ -463,7 +540,7 @@ function toAuditLogView(audit: AuditRow): AuditLogView {
     machineId: audit.machine_id,
     machineHostname: audit.machine_hostname,
     executionId: audit.execution_id,
-    createdAt: formatExecutionDate(audit.created_at),
+    createdAt: formatExecutionDate(timestampText(audit.created_at)),
     message: normalizeDisplayText(audit.message),
   };
 }
@@ -561,8 +638,8 @@ function toPendingMachineEnrollmentView(row: PendingEnrollmentRow): PendingMachi
     location: row.location,
     agentName: row.agent_name,
     installDir: row.install_dir,
-    createdAt: row.created_at,
-    expiresAt: row.expires_at,
+    createdAt: timestampText(row.created_at),
+    expiresAt: timestampText(row.expires_at),
     command: buildMachineInstallCommand({
       appOrigin,
       enrollmentToken: token,
@@ -1070,6 +1147,117 @@ async function loadMachines(machineId?: string, viewerUserId?: string, limit?: n
   return result.rows;
 }
 
+function machineStatusSqlExpression() {
+  return `
+    CASE
+      WHEN m.last_seen_at::timestamptz <= NOW() - INTERVAL '180 seconds' THEN 'offline'
+      WHEN m.last_seen_at::timestamptz <= NOW() - INTERVAL '90 seconds'
+        OR m.cpu_percent >= 85
+        OR m.disk_percent >= 90
+        OR (CASE WHEN m.ram_total_gb > 0 THEN (m.ram_used_gb / m.ram_total_gb) * 100 ELSE 0 END) >= 90
+        THEN 'warning'
+      ELSE 'online'
+    END
+  `;
+}
+
+async function loadMachinesPage(viewerUserId: string, input: MachinePageInput = {}) {
+  const limit = normalizePageLimit(input.limit);
+  const params: unknown[] = [viewerUserId];
+  const conditions: string[] = [machineAccessCondition("m.id", "$1")];
+  const cursor = decodeCursor("machines", input.cursor);
+  const search = input.search?.trim();
+  const status = input.status ?? "all";
+
+  if (search) {
+    params.push(`%${search}%`);
+    conditions.push(`
+      (
+        m.hostname ILIKE $${params.length}
+        OR a.label ILIKE $${params.length}
+        OR m.ip ILIKE $${params.length}
+        OR m.os ILIKE $${params.length}
+        OR m.distro_id ILIKE $${params.length}
+        OR m.distro_family ILIKE $${params.length}
+      )
+    `);
+  }
+
+  if (status !== "all") {
+    params.push(status);
+    conditions.push(`${machineStatusSqlExpression()} = $${params.length}`);
+  }
+
+  if (cursor) {
+    if (cursor.length !== 3) {
+      throw new Error("Cursor invalido.");
+    }
+    params.push(cursor[0], cursor[1], cursor[2]);
+    const firstParam = params.length - 2;
+    conditions.push(
+      `(LOWER(m.hostname), LOWER(a.label), m.id) > ($${firstParam}, $${firstParam + 1}, $${firstParam + 2})`,
+    );
+  }
+
+  params.push(limit + 1);
+  const limitParam = params.length;
+  const result = await dbQuery<MachineRow>(
+    `
+      SELECT
+        m.id,
+        m.agent_id,
+        a.label AS agent_label,
+        m.hostname,
+        m.ip,
+        m.os,
+        m.distro_id,
+        m.distro_family,
+        m.distro_version,
+        m.kernel,
+        m.arch,
+        m.location,
+        m.uptime_sec,
+        m.cpu_percent,
+        m.ram_used_gb,
+        m.ram_total_gb,
+        m.disk_percent,
+        m.scheduled_task_limit,
+        m.last_seen_at,
+        COALESCE(
+          array_remove(
+            array_agg(COALESCE(ms.display_name, ms.slug) ORDER BY LOWER(COALESCE(ms.display_name, ms.slug))),
+            NULL
+          ),
+          '{}'
+        ) AS services
+      FROM machines m
+      INNER JOIN agents a ON a.id = m.agent_id
+      LEFT JOIN machine_services ms ON ms.machine_id = m.id
+      WHERE ${conditions.join(" AND ")}
+      GROUP BY m.id, a.label
+      ORDER BY LOWER(m.hostname) ASC, LOWER(a.label) ASC, m.id ASC
+      LIMIT $${limitParam}
+    `,
+    params,
+  );
+
+  const rows = result.rows.slice(0, limit);
+  const lastRow = rows.at(-1);
+  const nextCursor =
+    result.rows.length > limit && lastRow
+      ? encodeCursor("machines", [
+          lastRow.hostname.toLowerCase(),
+          lastRow.agent_label.toLowerCase(),
+          lastRow.id,
+        ])
+      : null;
+
+  return {
+    rows,
+    pageInfo: pageInfo(nextCursor, limit),
+  };
+}
+
 async function loadDashboardMachineStats(viewerUserId: string) {
   const result = await dbQuery<DashboardMachineStatsRow>(
     `
@@ -1168,9 +1356,11 @@ async function loadExecutions(
   executionId?: string,
   viewerUserId?: string,
   limit = DEFAULT_LIST_LIMIT,
+  cursor?: string | null,
 ) {
   const params: unknown[] = [];
   const conditions: string[] = [];
+  const decodedCursor = executionId ? null : decodeCursor("executions", cursor);
 
   if (machineId) {
     params.push(machineId);
@@ -1185,6 +1375,17 @@ async function loadExecutions(
   if (viewerUserId) {
     params.push(viewerUserId);
     conditions.push(machineAccessCondition("execution.machine_id", `$${params.length}`));
+  }
+
+  if (decodedCursor) {
+    if (decodedCursor.length !== 2) {
+      throw new Error("Cursor invalido.");
+    }
+    params.push(decodedCursor[0], decodedCursor[1]);
+    const firstParam = params.length - 1;
+    conditions.push(
+      `(execution.requested_at::timestamptz, execution.id) < ($${firstParam}::timestamptz, $${firstParam + 1})`,
+    );
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -1222,7 +1423,7 @@ async function loadExecutions(
       FROM action_executions execution
       LEFT JOIN machines machine ON machine.id = execution.machine_id
       ${where}
-      ORDER BY execution.requested_at DESC
+      ORDER BY execution.requested_at::timestamptz DESC, execution.id DESC
       ${limitClause}
     `,
     params,
@@ -1284,11 +1485,32 @@ async function loadRecurringSchedules(
   return result.rows;
 }
 
-async function loadAuditLogs(limit = 80, viewerUserId?: string) {
-  const params: unknown[] = [limit];
-  const visibilityWhere = viewerUserId
-    ? `WHERE audit.machine_id IS NULL OR ${machineAccessCondition("audit.machine_id", "$2")}`
-    : "";
+async function loadAuditLogs(limit = 80, viewerUserId?: string, cursor?: string | null) {
+  const params: unknown[] = [];
+  const conditions: string[] = [];
+  const decodedCursor = decodeCursor("audits", cursor);
+
+  if (viewerUserId) {
+    params.push(viewerUserId);
+    conditions.push(
+      `(audit.machine_id IS NULL OR ${machineAccessCondition("audit.machine_id", `$${params.length}`)})`,
+    );
+  }
+
+  if (decodedCursor) {
+    if (decodedCursor.length !== 2) {
+      throw new Error("Cursor invalido.");
+    }
+    params.push(decodedCursor[0], decodedCursor[1]);
+    const firstParam = params.length - 1;
+    conditions.push(
+      `(audit.created_at::timestamptz, audit.id) < ($${firstParam}::timestamptz, $${firstParam + 1})`,
+    );
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  params.push(limit);
+  const limitParam = params.length;
   const result = await dbQuery<AuditRow>(
     `
       SELECT
@@ -1303,11 +1525,11 @@ async function loadAuditLogs(limit = 80, viewerUserId?: string) {
         COALESCE(NULLIF(audit.machine_hostname, ''), machine.hostname) AS machine_hostname
       FROM audit_logs audit
       LEFT JOIN machines machine ON machine.id = audit.machine_id
-      ${visibilityWhere}
-      ORDER BY audit.created_at DESC
-      LIMIT $1
+      ${where}
+      ORDER BY audit.created_at::timestamptz DESC, audit.id DESC
+      LIMIT $${limitParam}
     `,
-    viewerUserId ? [...params, viewerUserId] : params,
+    params,
   );
 
   return result.rows;
@@ -1497,11 +1719,15 @@ export async function getDashboardView(viewerUserId: string): Promise<DashboardV
   };
 }
 
-export async function getMachinesView(viewerUserId: string): Promise<MachinesPageView> {
-  const [machines, pendingEnrollments] = await Promise.all([
-    loadMachines(undefined, viewerUserId, MACHINE_LIST_LIMIT),
+export async function getMachinesView(
+  viewerUserId: string,
+  input: MachinePageInput = {},
+): Promise<MachinesPageView> {
+  const [machinePage, pendingEnrollments] = await Promise.all([
+    loadMachinesPage(viewerUserId, input),
     loadPendingEnrollments(),
   ]);
+  const machines = machinePage.rows;
   const deletePermissions = await loadMachineDeletePermissions(
     machines.map((machine) => machine.id),
     viewerUserId,
@@ -1515,6 +1741,7 @@ export async function getMachinesView(viewerUserId: string): Promise<MachinesPag
     pendingEnrollments: pendingEnrollments
       .map(safeToPendingMachineEnrollmentView)
       .filter((entry): entry is PendingMachineEnrollmentView => entry != null),
+    machinesPageInfo: machinePage.pageInfo,
   };
 }
 
@@ -1548,8 +1775,8 @@ export async function getMachineGroupsPageView(): Promise<MachineGroupsPageView>
       ...toMachineGroupOptionView(group),
       owners: ownersByGroupId.get(group.id) ?? [],
       members: membersByGroupId.get(group.id) ?? [],
-      createdAt: group.created_at,
-      updatedAt: group.updated_at,
+      createdAt: timestampText(group.created_at),
+      updatedAt: timestampText(group.updated_at),
     })),
     users: users.map(toSelectableUserView),
   };
@@ -1863,13 +2090,22 @@ export async function getTemplateCatalogView(viewerUserId: string): Promise<Temp
   };
 }
 
-export async function getExecutionLogFeed(viewerUserId: string): Promise<ExecutionFeedView> {
+export async function getExecutionLogFeed(
+  viewerUserId: string,
+  input: ExecutionFeedInput = {},
+): Promise<ExecutionFeedView> {
+  const limit = normalizePageLimit(input.limit);
+  const auditsLimit = normalizePageLimit(input.auditsLimit);
   const [executions, recurringSchedules, audits] = await Promise.all([
-    loadExecutions(undefined, undefined, viewerUserId, DEFAULT_LIST_LIMIT),
+    loadExecutions(undefined, undefined, viewerUserId, limit + 1, input.executionsCursor),
     loadRecurringSchedules(viewerUserId, undefined, DEFAULT_LIST_LIMIT),
-    loadAuditLogs(80, viewerUserId),
+    loadAuditLogs(auditsLimit + 1, viewerUserId, input.auditsCursor),
   ]);
-  const executionViews = executions.map(toExecutionLogView);
+  const executionRows = executions.slice(0, limit);
+  const auditRows = audits.slice(0, auditsLimit);
+  const lastExecution = executionRows.at(-1);
+  const lastAudit = auditRows.at(-1);
+  const executionViews = executionRows.map(toExecutionLogView);
 
   return {
     executions: executionViews,
@@ -1877,7 +2113,19 @@ export async function getExecutionLogFeed(viewerUserId: string): Promise<Executi
       .filter((execution) => execution.status === "queued" && execution.isScheduled)
       .sort((left, right) => left.availableAt.localeCompare(right.availableAt)),
     recurringSchedules: recurringSchedules.map(toRecurringScheduleView),
-    audits: audits.map(toAuditLogView),
+    audits: auditRows.map(toAuditLogView),
+    executionsPageInfo: pageInfo(
+      executions.length > limit && lastExecution
+        ? encodeCursor("executions", [timestampText(lastExecution.requested_at), lastExecution.id])
+        : null,
+      limit,
+    ),
+    auditsPageInfo: pageInfo(
+      audits.length > auditsLimit && lastAudit
+        ? encodeCursor("audits", [timestampText(lastAudit.created_at), lastAudit.id])
+        : null,
+      auditsLimit,
+    ),
   };
 }
 
@@ -2233,7 +2481,7 @@ export async function updateActionTemplate(
   return withTransaction(async (client) => {
     const template = await loadTemplateById(client, input.templateId);
     if (!template) {
-      throw new Error("Template não encontrado.");
+      throw new Error("Template nÃ£o encontrado.");
     }
 
     const updatedAt = new Date().toISOString();
@@ -2299,11 +2547,11 @@ export async function deleteActionTemplate(
   return withTransaction(async (client) => {
     const template = await loadTemplateById(client, input.templateId);
     if (!template) {
-      throw new Error("Template não encontrado.");
+      throw new Error("Template nÃ£o encontrado.");
     }
 
     const now = new Date().toISOString();
-    const cancellationMessage = "Execução cancelada porque o template foi excluído.";
+    const cancellationMessage = "ExecuÃ§Ã£o cancelada porque o template foi excluÃ­do.";
 
     const cancelled = await client.query<{
       id: string;
@@ -2340,44 +2588,30 @@ export async function deleteActionTemplate(
     );
 
     for (const execution of cancelled.rows) {
-      await client.query(
-        `
-          INSERT INTO audit_logs (
-            id, execution_id, machine_id, machine_hostname, actor_type, actor_id, action, message,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, 'panel', $5, 'execution.cancelled', $6, $7)
-        `,
-        [
-          crypto.randomUUID(),
-          execution.id,
-          execution.machine_id,
-          execution.machine_hostname,
-          input.requestedBy,
-          `Conta ${input.requestedBy} cancelou a execução ${execution.id} porque o template ${template.name} foi excluído.`,
-          now,
-        ],
-      );
+      await appendPanelAuditLog(client, {
+        executionId: execution.id,
+        machineId: execution.machine_id,
+        machineHostname: execution.machine_hostname,
+        actorType: "panel",
+        actorId: input.requestedBy,
+        action: "execution.cancelled",
+        message: `Conta ${input.requestedBy} cancelou a execucao ${execution.id} porque o template ${template.name} foi excluido.`,
+        createdAt: now,
+        severity: "warn",
+      });
     }
 
     for (const schedule of cancelledSchedules.rows) {
-      await client.query(
-        `
-          INSERT INTO audit_logs (
-            id, execution_id, machine_id, machine_hostname, actor_type, actor_id, action, message,
-            created_at
-          )
-          VALUES ($1, NULL, $2, $3, 'panel', $4, 'schedule.cancelled', $5, $6)
-        `,
-        [
-          crypto.randomUUID(),
-          schedule.machine_id,
-          schedule.machine_hostname,
-          input.requestedBy,
-          `Conta ${input.requestedBy} cancelou a recorrencia ${schedule.id} porque o template ${template.name} foi excluido.`,
-          now,
-        ],
-      );
+      await appendPanelAuditLog(client, {
+        machineId: schedule.machine_id,
+        machineHostname: schedule.machine_hostname,
+        actorType: "panel",
+        actorId: input.requestedBy,
+        action: "schedule.cancelled",
+        message: `Conta ${input.requestedBy} cancelou a recorrencia ${schedule.id} porque o template ${template.name} foi excluido.`,
+        createdAt: now,
+        severity: "warn",
+      });
     }
 
     await client.query(
@@ -2406,20 +2640,19 @@ export async function deleteActionTemplate(
       [input.templateId],
     );
 
-    await client.query(
-      `
-        INSERT INTO audit_logs (
-          id, execution_id, machine_id, actor_type, actor_id, action, message, created_at
-        )
-        VALUES ($1, NULL, NULL, 'panel', $2, 'template.deleted', $3, $4)
-      `,
-      [
-        crypto.randomUUID(),
-        input.requestedBy,
-        `Conta ${input.requestedBy} excluiu o template ${template.name} (${input.templateId}) e cancelou ${cancelled.rows.length} execuções pendentes.`,
-        now,
-      ],
-    );
+    await appendPanelAuditLog(client, {
+      actorType: "panel",
+      actorId: input.requestedBy,
+      action: "template.deleted",
+      message: `Conta ${input.requestedBy} excluiu o template ${template.name} (${input.templateId}) e cancelou ${cancelled.rows.length} execucoes pendentes.`,
+      createdAt: now,
+      severity: "warn",
+      metadata: {
+        alert: true,
+        templateId: input.templateId,
+        cancelledExecutions: cancelled.rows.length,
+      },
+    });
 
     return {
       templateId: input.templateId,
@@ -2648,7 +2881,7 @@ export async function queueTemplateExecution(
   const result = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
-      throw new Error("Máquina não encontrada.");
+      throw new Error("MÃ¡quina nÃ£o encontrada.");
     }
 
     const templates = await client.query<TemplateRow>(
@@ -2673,7 +2906,7 @@ export async function queueTemplateExecution(
 
     const template = templates.rows[0];
     if (!template) {
-      throw new Error("Template não encontrado.");
+      throw new Error("Template nÃ£o encontrado.");
     }
 
     const executionId = crypto.randomUUID();
@@ -2770,6 +3003,7 @@ export async function queueTemplateExecution(
 
 export async function startRealtimeTemplateExecution(
   input: StartRealtimeTemplateExecutionInput & {
+    requestedBy: string;
     openedByUserId: string;
     requestedByUserId: string;
   },
@@ -2777,17 +3011,17 @@ export async function startRealtimeTemplateExecution(
   const created = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
-      throw new Error("Máquina não encontrada.");
+      throw new Error("Maquina nao encontrada.");
     }
 
     const machineView = toMachineView(machine);
     if (machineView.status === "offline") {
-      throw new Error("A máquina está offline. Aguarde um heartbeat antes de executar o template.");
+      throw new Error("A maquina esta offline. Aguarde um heartbeat antes de executar o template.");
     }
 
     const template = await loadTemplateById(client, input.templateId);
     if (!template) {
-      throw new Error("Template não encontrado.");
+      throw new Error("Template nao encontrado.");
     }
 
     const executionId = crypto.randomUUID();
@@ -2822,24 +3056,18 @@ export async function startRealtimeTemplateExecution(
       ],
     );
 
-    await client.query(
-      `
-        INSERT INTO audit_logs (
-          id, execution_id, machine_id, machine_hostname, actor_type, actor_id, action, message,
-          created_at
-        )
-        VALUES ($1, $2, $3, $4, 'panel', $5, 'execution.realtime.started', $6, $7)
-      `,
-      [
-        crypto.randomUUID(),
-        executionId,
-        machine.id,
-        machine.hostname,
-        input.requestedBy,
-        `Conta ${input.requestedBy} iniciou o template ${template.name} em shell ao vivo na máquina ${machine.hostname} em ${formatExecutionDate(requestedAt)}.`,
-        requestedAt,
-      ],
-    );
+    await appendPanelAuditLog(client, {
+      executionId,
+      machineId: machine.id,
+      machineHostname: machine.hostname,
+      actorType: "panel",
+      actorId: input.requestedBy,
+      action: "execution.realtime.started",
+      message: `Conta ${input.requestedBy} iniciou o template ${template.name} em shell ao vivo na maquina ${machine.hostname} em ${formatExecutionDate(requestedAt)}.`,
+      createdAt: requestedAt,
+      severity: "warn",
+      metadata: { alert: true, templateId: template.id },
+    });
 
     return {
       execution: {
@@ -2892,7 +3120,7 @@ export async function startRealtimeTemplateExecution(
   } catch (error) {
     const finishedAt = new Date().toISOString();
     const message =
-      error instanceof Error ? error.message : "Não foi possível abrir o shell da execução.";
+      error instanceof Error ? error.message : "Nao foi possivel abrir o shell da execucao.";
 
     await withTransaction(async (client) => {
       await client.query(
@@ -2909,23 +3137,18 @@ export async function startRealtimeTemplateExecution(
         [created.execution.id, finishedAt, redactSensitiveText(message)],
       );
 
-      await client.query(
-        `
-          INSERT INTO audit_logs (
-            id, execution_id, machine_id, machine_hostname, actor_type, actor_id, action, message,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, 'system', 'api', 'execution.realtime.failed', $5, $6)
-        `,
-        [
-          crypto.randomUUID(),
-          created.execution.id,
-          created.execution.machineId,
-          created.execution.machineHostname,
-          `Falha ao abrir o shell ao vivo para a execução ${created.execution.id}: ${message}`,
-          finishedAt,
-        ],
-      );
+      await appendPanelAuditLog(client, {
+        executionId: created.execution.id,
+        machineId: created.execution.machineId,
+        machineHostname: created.execution.machineHostname,
+        actorType: "system",
+        actorId: "api",
+        action: "execution.realtime.failed",
+        message: `Falha ao abrir o shell ao vivo para a execucao ${created.execution.id}: ${message}`,
+        createdAt: finishedAt,
+        severity: "warn",
+        metadata: { alert: true },
+      });
     });
 
     throw error;
@@ -2933,17 +3156,17 @@ export async function startRealtimeTemplateExecution(
 }
 
 export async function queueRemoteTerminalCommand(
-  input: RemoteTerminalInput & { requestedByUserId: string },
+  input: RemoteTerminalInput & { requestedBy: string; requestedByUserId: string },
 ): Promise<ExecutionDetailView> {
   const result = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
-      throw new Error("Máquina não encontrada.");
+      throw new Error("MÃ¡quina nÃ£o encontrada.");
     }
 
     const machineView = toMachineView(machine);
     if (machineView.status === "offline") {
-      throw new Error("A máquina está offline. Aguarde um heartbeat antes de abrir o terminal.");
+      throw new Error("A mÃ¡quina estÃ¡ offline. Aguarde um heartbeat antes de abrir o terminal.");
     }
 
     const executionId = crypto.randomUUID();
@@ -3027,14 +3250,14 @@ export async function queueMachineControlAction(
   const result = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
-      throw new Error("Máquina não encontrada.");
+      throw new Error("MÃ¡quina nÃ£o encontrada.");
     }
 
     const machineView = toMachineView(machine);
     if (machineView.status === "offline") {
       throw new Error(
-        `A máquina está offline. Aguarde um heartbeat antes de solicitar ${
-          input.action === "restart" ? "o reinício" : "o desligamento"
+        `A mÃ¡quina estÃ¡ offline. Aguarde um heartbeat antes de solicitar ${
+          input.action === "restart" ? "o reinÃ­cio" : "o desligamento"
         }.`,
       );
     }
@@ -3124,12 +3347,12 @@ export async function queueMachineSync(input: {
   const result = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
-      throw new Error("Máquina não encontrada.");
+      throw new Error("MÃ¡quina nÃ£o encontrada.");
     }
 
     const machineView = toMachineView(machine);
     if (machineView.status === "offline") {
-      throw new Error("A máquina está offline. Aguarde um heartbeat antes de sincronizar.");
+      throw new Error("A mÃ¡quina estÃ¡ offline. Aguarde um heartbeat antes de sincronizar.");
     }
 
     await client.query("SELECT id FROM machines WHERE id = $1 FOR UPDATE", [machine.id]);
@@ -3153,7 +3376,7 @@ export async function queueMachineSync(input: {
       const remainingMs =
         MACHINE_SYNC_COOLDOWN_MS - (Date.now() - new Date(recentRequestedAt).getTime());
       const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
-      throw new Error(`Aguarde ${remainingSeconds}s antes de atualizar esta máquina novamente.`);
+      throw new Error(`Aguarde ${remainingSeconds}s antes de atualizar esta mÃ¡quina novamente.`);
     }
 
     const executionId = crypto.randomUUID();
@@ -3192,7 +3415,7 @@ export async function queueMachineSync(input: {
       executionId,
       machineId: machine.id,
       machineHostname: machine.hostname,
-      message: `Conta ${input.requestedBy} solicitou sincronização imediata do agent na máquina ${machine.hostname}.`,
+      message: `Conta ${input.requestedBy} solicitou sincronizaÃ§Ã£o imediata do agent na mÃ¡quina ${machine.hostname}.`,
       createdAt: requestedAt,
       severity: "notice",
       metadata: {
@@ -3219,7 +3442,7 @@ export async function queueMachineSync(input: {
       requestedAt,
       availableAt: requestedAt,
       isScheduled: false,
-      description: `Sincronização solicitada por ${input.requestedBy} em ${machine.hostname} em ${formatExecutionDate(requestedAt)}.`,
+      description: `SincronizaÃ§Ã£o solicitada por ${input.requestedBy} em ${machine.hostname} em ${formatExecutionDate(requestedAt)}.`,
     };
   });
 
@@ -3237,13 +3460,13 @@ export async function queueMachineAgentUninstall(input: {
   const result = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
-      throw new Error("Máquina não encontrada.");
+      throw new Error("MÃ¡quina nÃ£o encontrada.");
     }
 
     const machineView = toMachineView(machine);
     if (machineView.status === "offline") {
       throw new Error(
-        "A máquina está offline. Aguarde um heartbeat antes de solicitar a desinstalação.",
+        "A mÃ¡quina estÃ¡ offline. Aguarde um heartbeat antes de solicitar a desinstalaÃ§Ã£o.",
       );
     }
 
@@ -3262,7 +3485,7 @@ export async function queueMachineAgentUninstall(input: {
     );
 
     if (existing.rows[0]) {
-      throw new Error("Já existe uma desinstalação do agent em andamento para esta máquina.");
+      throw new Error("JÃ¡ existe uma desinstalaÃ§Ã£o do agent em andamento para esta mÃ¡quina.");
     }
 
     const executionId = crypto.randomUUID();
@@ -3297,29 +3520,23 @@ export async function queueMachineAgentUninstall(input: {
       ],
     );
 
-    await client.query(
-      `
-        INSERT INTO audit_logs (
-          id, execution_id, machine_id, machine_hostname, actor_type, actor_id, action, message,
-          created_at
-        )
-        VALUES ($1, $2, $3, $4, 'panel', $5, 'machine.agent.uninstall.requested', $6, $7)
-      `,
-      [
-        crypto.randomUUID(),
-        executionId,
-        machine.id,
-        machine.hostname,
-        input.requestedBy,
-        `Conta ${input.requestedBy} solicitou a desinstalação completa do agent na máquina ${machine.hostname}.`,
-        requestedAt,
-      ],
-    );
+    await appendPanelAuditLog(client, {
+      executionId,
+      machineId: machine.id,
+      machineHostname: machine.hostname,
+      actorType: "panel",
+      actorId: input.requestedBy,
+      action: "machine.agent.uninstall.requested",
+      message: `Conta ${input.requestedBy} solicitou a desinstalacao completa do agent na maquina ${machine.hostname}.`,
+      createdAt: requestedAt,
+      severity: "critical",
+      metadata: { alert: true, executionKind: "terminal" },
+    });
 
     return {
       id: executionId,
       executionKind: "terminal" as const,
-      templateId: "agent-self-uninstall",
+      templateId: "agent-uninstall",
       templateName,
       machineId: machine.id,
       machineHostname: machine.hostname,

@@ -22,11 +22,28 @@ DEFAULT_HEARTBEAT_INTERVAL_SEC = 60
 DEFAULT_POLL_LIMIT = 3
 
 
+def harden_config_file(path: Path = CONFIG_PATH) -> None:
+    if not path.exists() or not hasattr(os, "stat"):
+        return
+
+    stat_result = path.stat()
+    current_uid = getattr(os, "geteuid", lambda: stat_result.st_uid)()
+    expected_uid = 0 if current_uid == 0 else current_uid
+    if stat_result.st_uid != expected_uid:
+        raise SystemExit(
+            f"config.json possui owner inseguro: uid={stat_result.st_uid}, esperado={expected_uid}."
+        )
+
+    if stat_result.st_mode & 0o077:
+        os.chmod(path, 0o600)
+
+
 def load_config() -> dict[str, Any]:
     if not CONFIG_PATH.exists():
         if not DEFAULT_CONFIG_PATH.exists():
             raise SystemExit("Arquivo de configuracao nao encontrado.")
         return json.loads(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"))
+    harden_config_file(CONFIG_PATH)
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
@@ -45,7 +62,10 @@ def save_config(config: dict[str, Any]) -> None:
         os.fsync(handle.fileno())
         temp_path = Path(handle.name)
 
+    os.chmod(temp_path, 0o600)
     os.replace(temp_path, CONFIG_PATH)
+    os.chmod(CONFIG_PATH, 0o600)
+    harden_config_file(CONFIG_PATH)
 
 
 def resolve_terminal_working_directory(config: dict[str, Any]) -> str:

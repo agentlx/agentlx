@@ -17,11 +17,8 @@ export const Route = createFileRoute("/api/agent/files/agent.py")({
               "cache-control": "no-store",
             },
           });
-        } catch (error) {
-          return jsonError(
-            error instanceof Error ? error.message : "Nao foi possivel carregar agent.py.",
-            500,
-          );
+        } catch {
+          return jsonError("Nao foi possivel carregar agent.py.", 500);
         }
       },
     },

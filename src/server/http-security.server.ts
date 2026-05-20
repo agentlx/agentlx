@@ -55,7 +55,7 @@ export function applySecurityHeaders(
       "img-src 'self' data: blob:",
       "font-src 'self' https://fonts.gstatic.com data:",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self'",
       "connect-src 'self' ws: wss:",
     ].join("; "),
   );

@@ -1,3 +1,5 @@
+![agentlx logo](docs/assets/agentlx-logo.svg)
+
 # agentlx
 
 Painel full stack open source para operacao de servidores Linux com:

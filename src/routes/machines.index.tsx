@@ -14,6 +14,7 @@ import {
   createMachineEnrollmentCommandAction,
   createPendingMachineEnrollmentAction,
   getMachinesData,
+  getMachinesPageAction,
   queueMachineAgentUninstallAction,
 } from "@/lib/panel-api";
 import { requireRouteScreen } from "@/lib/route-protection";
@@ -50,7 +51,7 @@ function MachinesList() {
   const loaderData = Route.useLoaderData();
   const createMachineEnrollmentCommand = useServerFn(createMachineEnrollmentCommandAction);
   const createPendingMachineEnrollment = useServerFn(createPendingMachineEnrollmentAction);
-  const refreshMachinesData = useServerFn(getMachinesData);
+  const loadMachinesPage = useServerFn(getMachinesPageAction);
   const queueMachineAgentUninstall = useServerFn(queueMachineAgentUninstallAction);
   const [machinesData, setMachinesData] = useState(loaderData);
   const [searchInput, setSearchInput] = useState("");
@@ -71,20 +72,26 @@ function MachinesList() {
   const [hiddenMachineIds, setHiddenMachineIds] = useState<string[]>([]);
   const [nowTimestamp, setNowTimestamp] = useState(Date.now());
   const [page, setPage] = useState(1);
+  const [loadingMoreMachines, setLoadingMoreMachines] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const refresh = async () => {
       try {
-        const next = await refreshMachinesData();
+        const next = await loadMachinesPage({
+          data: { cursor: null, search: appliedSearch, status: filter },
+        });
         if (!cancelled) {
           setMachinesData(next);
+          setPage(1);
         }
       } catch {
         // Ignore transient polling errors and preserve the last good state.
       }
     };
+
+    void refresh();
 
     const intervalId = window.setInterval(() => {
       void refresh();
@@ -94,7 +101,7 @@ function MachinesList() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [refreshMachinesData]);
+  }, [appliedSearch, filter, loadMachinesPage]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -220,6 +227,37 @@ function MachinesList() {
       setPage(totalPages);
     }
   }, [page, totalPages]);
+
+  const loadMoreMachinesFromCursor = async () => {
+    const cursor = machinesData.machinesPageInfo.nextCursor;
+    if (!cursor || loadingMoreMachines) {
+      return;
+    }
+
+    setLoadingMoreMachines(true);
+    try {
+      const next = await loadMachinesPage({
+        data: { cursor, search: appliedSearch, status: filter },
+      });
+      setMachinesData((current) => ({
+        ...next,
+        pendingEnrollments: current.pendingEnrollments,
+        machines: [
+          ...current.machines,
+          ...next.machines.filter(
+            (machine) =>
+              !current.machines.some((currentMachine) => currentMachine.id === machine.id),
+          ),
+        ],
+      }));
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Nao foi possivel carregar mais maquinas.",
+      );
+    } finally {
+      setLoadingMoreMachines(false);
+    }
+  };
 
   const requestRemoval = async () => {
     if (!removeTarget) {
@@ -663,6 +701,15 @@ function MachinesList() {
             >
               Proxima
             </button>
+            {machinesData.machinesPageInfo.hasMore && (
+              <button
+                onClick={() => void loadMoreMachinesFromCursor()}
+                disabled={loadingMoreMachines}
+                className="rounded-2xl border border-border px-3 py-1.5 transition-colors hover:bg-secondary disabled:opacity-50"
+              >
+                {loadingMoreMachines ? "Carregando..." : "Carregar mais"}
+              </button>
+            )}
           </div>
         </div>
 

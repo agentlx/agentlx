@@ -2,6 +2,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonError, textResponse } from "@/server/http.server";
+import { getEnv } from "@/server/env.server";
 
 const UPDATE_SCRIPT_PATH = path.resolve(process.cwd(), "agent-linux", "update.sh");
 
@@ -11,7 +12,8 @@ export const Route = createFileRoute("/api/agent/update.sh")({
       GET: async ({ request }) => {
         try {
           const script = await readFile(UPDATE_SCRIPT_PATH, "utf8");
-          const origin = new URL(request.url).origin;
+          void request;
+          const origin = getEnv().APP_ORIGIN.replace(/\/+$/, "");
           const replacements: Array<[string, string]> = [
             [
               'DEFAULT_RUNTIME_MANIFEST_URL=""',
@@ -34,13 +36,8 @@ export const Route = createFileRoute("/api/agent/update.sh")({
               "cache-control": "no-store",
             },
           });
-        } catch (error) {
-          return jsonError(
-            error instanceof Error
-              ? error.message
-              : "Nao foi possivel carregar o atualizador do agent.",
-            500,
-          );
+        } catch {
+          return jsonError("Nao foi possivel carregar o atualizador do agent.", 500);
         }
       },
     },

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getViewerFromCookieHeader } from "@/server/auth.server";
 import { assertTrustedCookieRequest } from "@/server/http-security.server";
 import { jsonError, jsonResponse } from "@/server/http.server";
+import { BODY_LIMITS, readRequestText } from "@/server/request-body.server";
 import { closeRealtimeTerminalSession } from "@/server/terminal-realtime.server";
 
 const closeRealtimeTerminalSessionSchema = z.object({
@@ -13,10 +14,11 @@ async function parseCloseRequestBody(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
 
   if (contentType.includes("application/json")) {
-    return closeRealtimeTerminalSessionSchema.parse(await request.json());
+    const rawJson = await readRequestText(request, BODY_LIMITS.terminalControl);
+    return closeRealtimeTerminalSessionSchema.parse(JSON.parse(rawJson));
   }
 
-  const raw = await request.text();
+  const raw = await readRequestText(request, BODY_LIMITS.terminalControl);
   if (!raw) {
     throw new Error("SessionId do tunel nao informado.");
   }
@@ -39,8 +41,8 @@ export const Route = createFileRoute("/api/terminal/close")({
           assertTrustedCookieRequest(request, {
             message: "Origin da requisicao nao autorizada para encerrar o terminal.",
           });
-        } catch (error) {
-          return jsonError(error instanceof Error ? error.message : "Origin nao autorizada.", 403);
+        } catch {
+          return jsonError("Origin nao autorizada.", 403);
         }
 
         const viewer = await getViewerFromCookieHeader(request.headers.get("cookie") ?? undefined);
@@ -55,11 +57,8 @@ export const Route = createFileRoute("/api/terminal/close")({
             ok: true,
             ...result,
           });
-        } catch (error) {
-          return jsonError(
-            error instanceof Error ? error.message : "Nao foi possivel encerrar o tunel remoto.",
-            400,
-          );
+        } catch {
+          return jsonError("Nao foi possivel encerrar o tunel remoto.", 400);
         }
       },
     },

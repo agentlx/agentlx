@@ -57,3 +57,18 @@ export function prepareRuntimeEnv(env = process.env) {
   }
   return env;
 }
+
+export function buildDatabaseSslConfig(env = process.env) {
+  if (!/^true$/i.test(env.DATABASE_SSL || "")) {
+    return undefined;
+  }
+
+  const rejectUnauthorized = !/^false$/i.test(env.DATABASE_SSL_REJECT_UNAUTHORIZED || "true");
+  const ca = env.DATABASE_SSL_CA?.trim();
+  const caPath = env.DATABASE_SSL_CA_PATH?.trim();
+
+  return {
+    rejectUnauthorized,
+    ...(ca ? { ca } : caPath ? { ca: readFileSync(caPath, "utf8") } : {}),
+  };
+}

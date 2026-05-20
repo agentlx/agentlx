@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import pg from "pg";
-import { prepareRuntimeEnv } from "./env.mjs";
+import { buildDatabaseSslConfig, prepareRuntimeEnv } from "./env.mjs";
 
 const { Client } = pg;
 
@@ -21,7 +21,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 for (let attempt = 1; attempt <= retries; attempt += 1) {
   const client = new Client({
     connectionString,
-    ssl: /^true$/i.test(process.env.DATABASE_SSL || "") ? { rejectUnauthorized: false } : undefined,
+    ssl: buildDatabaseSslConfig(),
   });
 
   try {

@@ -1,6 +1,6 @@
 {
   "name": "agentlx",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "license": "Apache-2.0",
   "sideEffects": false,
   "type": "module",
@@ -14,6 +14,7 @@
     "db:wait": "node scripts/wait-for-db.mjs",
     "user:create-admin": "node scripts/create-admin.mjs",
     "secrets:generate": "node scripts/generate-secrets.mjs",
+    "audit:verify": "node scripts/verify-audit.mjs",
     "agent:queue-command": "node scripts/queue-remote-command.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

@@ -5,6 +5,7 @@ import { readdir } from "node:fs/promises";
 import http from "node:http";
 import { stat } from "node:fs/promises";
 import { extname, normalize, resolve } from "node:path";
+import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 
@@ -64,14 +65,51 @@ if (typeof fetchHandler !== "function") {
   process.exit(1);
 }
 
-const readBody = async (req) => {
+const DEFAULT_MAX_BODY_BYTES = Number(process.env.HTTP_MAX_BODY_BYTES || 6 * 1024 * 1024);
+const AGENT_MAX_BODY_BYTES = Number(process.env.HTTP_AGENT_MAX_BODY_BYTES || 256 * 1024);
+const AGENT_RESULT_MAX_BODY_BYTES = Number(
+  process.env.HTTP_AGENT_RESULT_MAX_BODY_BYTES || 128 * 1024,
+);
+const TERMINAL_CONTROL_MAX_BODY_BYTES = Number(
+  process.env.HTTP_TERMINAL_CONTROL_MAX_BODY_BYTES || 32 * 1024,
+);
+
+function bodyLimitForPath(pathname) {
+  if (pathname === "/api/agent/executions/result") {
+    return AGENT_RESULT_MAX_BODY_BYTES;
+  }
+  if (pathname.startsWith("/api/agent/")) {
+    return AGENT_MAX_BODY_BYTES;
+  }
+  if (pathname.startsWith("/api/terminal/")) {
+    return TERMINAL_CONTROL_MAX_BODY_BYTES;
+  }
+  return DEFAULT_MAX_BODY_BYTES;
+}
+
+const readBody = async (req, limitBytes) => {
   if (req.method === "GET" || req.method === "HEAD") {
     return undefined;
   }
 
+  const contentLength = Number(req.headers["content-length"] || 0);
+  if (contentLength > limitBytes) {
+    const error = new Error("Payload Too Large");
+    error.statusCode = 413;
+    throw error;
+  }
+
   const chunks = [];
+  let total = 0;
   for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buffer.byteLength;
+    if (total > limitBytes) {
+      const error = new Error("Payload Too Large");
+      error.statusCode = 413;
+      throw error;
+    }
+    chunks.push(buffer);
   }
 
   if (chunks.length === 0) {
@@ -178,7 +216,7 @@ function buildSecurityHeaders(isSecureRequest) {
       "img-src 'self' data: blob:",
       "font-src 'self' https://fonts.gstatic.com data:",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self'",
       "connect-src 'self' ws: wss:",
     ].join("; "),
   };
@@ -269,7 +307,7 @@ const nodeServer = http.createServer(async (req, res) => {
 
     const detectedRequest = detectRequestOrigin(req);
     const url = new URL(req.url || "/", detectedRequest.origin);
-    const body = await readBody(req);
+    const body = await readBody(req, bodyLimitForPath(url.pathname));
 
     const request = new Request(url, {
       method: req.method,
@@ -310,17 +348,16 @@ const nodeServer = http.createServer(async (req, res) => {
       return;
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    res.end(buffer);
+    await pipeline(Readable.fromWeb(response.body), res);
   } catch (error) {
     console.error(error);
-    res.statusCode = 500;
+    res.statusCode = error?.statusCode === 413 ? 413 : 500;
     applyNodeSecurityHeaders(
       res,
       (req.headers["x-forwarded-proto"] || "").toString().includes("https"),
     );
     res.setHeader("content-type", "text/plain; charset=utf-8");
-    res.end("Internal Server Error");
+    res.end(error?.statusCode === 413 ? "Payload Too Large" : "Internal Server Error");
   }
 });
 

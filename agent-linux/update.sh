@@ -87,6 +87,8 @@ require_dependencies() {
 ensure_existing_installation() {
   [ -d "${INSTALL_DIR}" ] || fail "diretorio de instalacao nao encontrado: ${INSTALL_DIR}"
   [ -f "${INSTALL_DIR}/config.json" ] || fail "config.json nao encontrado em ${INSTALL_DIR}"
+  chown root:root "${INSTALL_DIR}/config.json" 2>/dev/null || true
+  chmod 0600 "${INSTALL_DIR}/config.json"
   [ -f "${INSTALL_DIR}/agent.py" ] || fail "agent.py nao encontrado em ${INSTALL_DIR}"
 }
 

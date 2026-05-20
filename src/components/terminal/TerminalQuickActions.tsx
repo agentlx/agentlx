@@ -437,6 +437,16 @@ export function TerminalQuickActions({
                             return;
                           }
 
+                          if (
+                            template.risk === "high" &&
+                            !window.confirm(
+                              `Este template e de alto risco e sera enviado para um shell privilegiado.\n\nConfirma executar "${template.name}"?`,
+                            )
+                          ) {
+                            setFeedbackMessage("Execucao de alto risco cancelada.");
+                            return;
+                          }
+
                           setTemplateExecutionPending(true);
                           void Promise.resolve(onExecuteTemplate(template))
                             .then((result) => {

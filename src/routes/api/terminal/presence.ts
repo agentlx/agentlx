@@ -29,10 +29,8 @@ export const Route = createFileRoute("/api/terminal/presence")({
           assertTrustedCookieRequest(request, {
             message: "Origin da requisicao nao autorizada para o stream de presenca.",
           });
-        } catch (error) {
-          return new Response(error instanceof Error ? error.message : "Origin nao autorizada.", {
-            status: 403,
-          });
+        } catch {
+          return new Response("Origin nao autorizada.", { status: 403 });
         }
 
         const viewer = await getViewerFromCookieHeader(request.headers.get("cookie") ?? undefined);
@@ -48,11 +46,8 @@ export const Route = createFileRoute("/api/terminal/presence")({
 
         try {
           await assertViewerCanAccessMachine(machineId, viewer.id);
-        } catch (error) {
-          return new Response(
-            error instanceof Error ? error.message : "Acesso negado a esta maquina.",
-            { status: 403 },
-          );
+        } catch {
+          return new Response("Acesso negado a esta maquina.", { status: 403 });
         }
 
         const stream = new ReadableStream<Uint8Array>({

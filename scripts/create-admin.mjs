@@ -1,10 +1,10 @@
 import "dotenv/config";
 
-import { createHash, randomBytes, randomUUID, scrypt as nodeScrypt } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, scrypt as nodeScrypt } from "node:crypto";
 import { stdin } from "node:process";
 import { promisify } from "node:util";
 import pg from "pg";
-import { prepareRuntimeEnv } from "./env.mjs";
+import { buildDatabaseSslConfig, prepareRuntimeEnv } from "./env.mjs";
 
 const { Client } = pg;
 
@@ -163,6 +163,21 @@ async function appendAuditLog(client, input) {
       createdAt,
     ],
   );
+
+  const anchorSecret =
+    process.env.AGENTLX_AUDIT_ANCHOR_SECRET ||
+    process.env.AGENTLX_PENDING_TOKEN_SECRET ||
+    "change-me-pending-token-secret";
+  const anchorHash = createHmac("sha256", anchorSecret).update(integrityHash).digest("hex");
+  await client.query(
+    `
+      INSERT INTO audit_integrity_anchors (
+        id, audit_log_id, integrity_hash, anchor_hash, anchor_version, created_at
+      )
+      VALUES ($1, $2, $3, $4, 1, $5)
+    `,
+    [randomUUID(), id, integrityHash, anchorHash, createdAt],
+  );
 }
 
 async function hashPassword(password) {
@@ -206,7 +221,7 @@ async function main() {
   const connectionString = buildConnectionString();
   const client = new Client({
     connectionString,
-    ssl: /^true$/i.test(process.env.DATABASE_SSL || "") ? { rejectUnauthorized: false } : undefined,
+    ssl: buildDatabaseSslConfig(),
   });
 
   await client.connect();

@@ -17,11 +17,8 @@ export const Route = createFileRoute("/api/agent/files/requirements")({
               "cache-control": "no-store",
             },
           });
-        } catch (error) {
-          return jsonError(
-            error instanceof Error ? error.message : "Nao foi possivel carregar requirements.",
-            500,
-          );
+        } catch {
+          return jsonError("Nao foi possivel carregar requirements.", 500);
         }
       },
     },

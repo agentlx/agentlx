@@ -1,9 +1,11 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import pg from "pg";
 import { defaultActionTemplates, type ServiceDetection } from "@/lib/agentlx";
 import { createSeedState } from "./seed.server";
 import { getEnv } from "./env.server";
+import { buildDatabaseSslConfig } from "./db-ssl.server";
+import { appendAuditLog } from "./audit.server";
 
 const { Pool } = pg;
 
@@ -12,29 +14,80 @@ const env = getEnv();
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
   max: env.DATABASE_POOL_MAX,
-  ssl: env.DATABASE_SSL ? { rejectUnauthorized: false } : undefined,
+  ssl: buildDatabaseSslConfig({
+    enabled: env.DATABASE_SSL,
+    rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED,
+    ca: env.DATABASE_SSL_CA,
+    caPath: env.DATABASE_SSL_CA_PATH,
+  }),
   options: `-c timezone=${env.APP_TIME_ZONE}`,
 });
 
 let readyPromise: Promise<void> | null = null;
+let maintenanceStarted = false;
 
 function toJson(value: unknown) {
   return JSON.stringify(value);
 }
 
-async function runSchema() {
-  const schemaPath = join(process.cwd(), "db", "schema.sql");
-  const sql = await readFile(schemaPath, "utf8");
-  const statements = sql
+function splitSqlStatements(sql: string) {
+  return sql
     .split(/;\s*(?:\r?\n|$)/)
     .map((statement) => statement.trim())
     .filter(Boolean);
+}
+
+async function runSqlFile(client: pg.PoolClient, filePath: string) {
+  const sql = await readFile(filePath, "utf8");
+  const statements = splitSqlStatements(sql);
+  for (const statement of statements) {
+    await client.query(statement);
+  }
+}
+
+async function runMigrations() {
+  const migrationsPath = join(process.cwd(), "db", "migrations");
+  const migrationFiles = (await readdir(migrationsPath))
+    .filter((entry) => /^\d+.*\.sql$/i.test(entry))
+    .sort((left, right) => left.localeCompare(right, "en"));
 
   const client = await pool.connect();
   try {
-    for (const statement of statements) {
-      await client.query(statement);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+
+    for (const migrationFile of migrationFiles) {
+      const applied = await client.query<{ id: string }>(
+        "SELECT id FROM schema_migrations WHERE id = $1 LIMIT 1",
+        [migrationFile],
+      );
+      if (applied.rows[0]) {
+        continue;
+      }
+
+      await client.query("BEGIN");
+      try {
+        await runSqlFile(client, join(migrationsPath, migrationFile));
+        await client.query("INSERT INTO schema_migrations (id) VALUES ($1)", [migrationFile]);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
     }
+  } finally {
+    client.release();
+  }
+}
+
+async function runLegacySchemaBootstrap() {
+  const client = await pool.connect();
+  try {
+    await runSqlFile(client, join(process.cwd(), "db", "schema.sql"));
   } finally {
     client.release();
   }
@@ -280,26 +333,18 @@ async function seedDemoData() {
     }
 
     for (const audit of state.auditLogs) {
-      await client.query(
-        `
-          INSERT INTO audit_logs (
-            id, execution_id, machine_id, machine_hostname, actor_type, actor_id, action, message,
-            created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        `,
-        [
-          audit.id,
-          audit.executionId,
-          audit.machineId,
-          audit.machineId ? (machineHostnameById.get(audit.machineId) ?? audit.machineId) : null,
-          audit.actorType,
-          audit.actorId,
-          audit.action,
-          audit.message,
-          audit.createdAt,
-        ],
-      );
+      await appendAuditLog(client, {
+        executionId: audit.executionId,
+        machineId: audit.machineId,
+        machineHostname: audit.machineId
+          ? (machineHostnameById.get(audit.machineId) ?? audit.machineId)
+          : null,
+        actorType: audit.actorType,
+        actorId: audit.actorId,
+        action: audit.action,
+        message: audit.message,
+        createdAt: audit.createdAt,
+      });
     }
 
     await client.query("COMMIT");
@@ -311,11 +356,118 @@ async function seedDemoData() {
   }
 }
 
+async function runMaintenanceCleanup() {
+  const now = new Date().toISOString();
+  const sessionCutoff = new Date(
+    Date.now() - env.AGENTLX_SESSION_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const enrollmentCutoff = new Date(
+    Date.now() - env.AGENTLX_ENROLLMENT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const executionCutoff = new Date(
+    Date.now() - env.AGENTLX_EXECUTION_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const inventoryCutoff = new Date(
+    Date.now() - env.AGENTLX_INVENTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `
+        DELETE FROM user_sessions
+        WHERE expires_at <= $1
+           OR (last_seen_at <= $2 AND expires_at <= $1)
+      `,
+      [now, sessionCutoff],
+    );
+    await client.query("DELETE FROM agent_request_nonces WHERE expires_at <= $1", [now]);
+    await client.query(
+      `
+        DELETE FROM agent_enrollment_tokens
+        WHERE expires_at <= $1
+          AND (consumed_at IS NOT NULL OR created_at <= $2)
+      `,
+      [now, enrollmentCutoff],
+    );
+    await client.query(
+      `
+        DELETE FROM auth_login_rate_limits
+        WHERE updated_at <= $1
+          AND (locked_until IS NULL OR locked_until <= $2)
+      `,
+      [sessionCutoff, now],
+    );
+    await client.query("DELETE FROM machine_inventories WHERE collected_at <= $1", [
+      inventoryCutoff,
+    ]);
+    await client.query(
+      `
+        UPDATE action_executions execution
+        SET
+          output = '',
+          error_output = CASE
+            WHEN execution.error_output = '' THEN ''
+            ELSE LEFT(execution.error_output, 2048)
+          END
+        WHERE execution.requested_at <= $1
+          AND execution.status IN ('success', 'failed', 'cancelled')
+          AND EXISTS (
+            SELECT 1
+            FROM audit_logs audit
+            WHERE audit.execution_id = execution.id
+          )
+      `,
+      [executionCutoff],
+    );
+    await client.query(
+      `
+        DELETE FROM action_executions execution
+        WHERE execution.requested_at <= $1
+          AND execution.status IN ('success', 'failed', 'cancelled')
+          AND NOT EXISTS (
+            SELECT 1
+            FROM audit_logs audit
+            WHERE audit.execution_id = execution.id
+          )
+      `,
+      [executionCutoff],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+function startPeriodicMaintenance() {
+  if (maintenanceStarted || env.NODE_ENV === "test") {
+    return;
+  }
+
+  maintenanceStarted = true;
+  const intervalMs = env.AGENTLX_MAINTENANCE_INTERVAL_MINUTES * 60 * 1000;
+  setInterval(() => {
+    runMaintenanceCleanup().catch((error) => {
+      console.error("[maintenance] cleanup failed", error);
+    });
+  }, intervalMs).unref?.();
+}
+
 export async function ensureDatabaseReady() {
   if (!readyPromise) {
     readyPromise = (async () => {
-      await runSchema();
+      if (env.DATABASE_RUN_MIGRATIONS_ON_BOOT) {
+        await runMigrations();
+      } else {
+        await runLegacySchemaBootstrap();
+      }
       await seedDemoData();
+      await runMaintenanceCleanup();
+      startPeriodicMaintenance();
     })();
   }
   return readyPromise;

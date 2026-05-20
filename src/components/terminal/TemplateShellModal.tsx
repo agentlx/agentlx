@@ -182,13 +182,19 @@ export function TemplateShellModal({
       };
 
       socket.onmessage = (event) => {
-        const payload = JSON.parse(String(event.data)) as {
+        let payload: {
           type: string;
           data?: string;
           message?: string;
           exitCode?: number | null;
           active?: boolean;
         };
+        try {
+          payload = JSON.parse(String(event.data)) as typeof payload;
+        } catch {
+          terminal.writeln("\r\n[ERRO] Mensagem invalida recebida do tunel remoto.");
+          return;
+        }
 
         if (payload.type === "session.ready") {
           terminal.writeln("\r\n[INFO] Sessao pronta. Abrindo shell remoto...");
@@ -331,6 +337,11 @@ export function TemplateShellModal({
             {errorMessage}
           </div>
         )}
+
+        <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs leading-5 text-warning">
+          Este shell acompanha uma execucao privilegiada no host remoto. Comandos manuais enviados
+          aqui podem alterar o sistema e ficam vinculados a sua sessao na auditoria.
+        </div>
 
         <div className="overflow-hidden rounded-lg border border-border bg-black">
           <div

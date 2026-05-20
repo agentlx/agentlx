@@ -6,6 +6,7 @@ import type {
   RealtimeTerminalSessionView,
 } from "@/lib/agentlx";
 import { authenticateAgentMessage } from "./agent.server";
+import { appendAuditLog } from "./audit.server";
 import { getViewerFromCookieHeader } from "./auth.server";
 import { dbQuery } from "./db.server";
 import { getEnv } from "./env.server";
@@ -19,6 +20,7 @@ type TerminalSession = {
   sessionId: string;
   machineId: string;
   openedByUserId: string;
+  openedByActorId: string;
   cols: number;
   rows: number;
   browserSocket: WebSocket | null;
@@ -26,6 +28,7 @@ type TerminalSession = {
   expiresAt: number;
   connectedToAgent: boolean;
   browserAttached: boolean;
+  inputAudited: boolean;
   lastBrowserHeartbeatAt: number;
   browserHeartbeatTimer: NodeJS.Timeout | null;
   bootstrapExecution: {
@@ -329,6 +332,32 @@ function openTerminalOnAgent(session: TerminalSession) {
   });
 }
 
+async function auditTerminalInputStarted(session: TerminalSession) {
+  const machine = await loadMachine(session.machineId);
+  await appendAuditLog(
+    {
+      query: (text, params) => dbQuery(text, params),
+    },
+    {
+      actorType: "panel",
+      actorId: session.openedByActorId,
+      action: "terminal.session.input_started",
+      severity: "warn",
+      machineId: session.machineId,
+      machineHostname: machine?.hostname ?? null,
+      executionId: session.bootstrapExecution?.executionId ?? null,
+      message: `Conta ${session.openedByActorId} iniciou entrada interativa em terminal ao vivo na maquina ${machine?.hostname ?? session.machineId}.`,
+      metadata: {
+        alert: true,
+        openedByUserId: session.openedByUserId,
+        sessionId: session.sessionId,
+        bootstrapExecutionId: session.bootstrapExecution?.executionId ?? null,
+        privileged: true,
+      },
+    },
+  );
+}
+
 function attachAgentHandlers(socket: WebSocket, machineId: string) {
   socket.on("message", (buffer) => {
     const raw = typeof buffer === "string" ? buffer : buffer.toString("utf-8");
@@ -369,6 +398,12 @@ function attachBrowserHandlers(socket: WebSocket, session: TerminalSession) {
     if (type === "terminal.input") {
       noteBrowserPresence(session);
       scheduleBrowserHeartbeatTimeout(session.sessionId);
+      if (!session.inputAudited) {
+        session.inputAudited = true;
+        auditTerminalInputStarted(session).catch((error) => {
+          console.error("[terminal][audit] falha ao registrar entrada interativa", error);
+        });
+      }
       sendJson(agent.socket, {
         type: "terminal.input",
         sessionId: session.sessionId,
@@ -464,10 +499,13 @@ async function handleBrowserUpgrade(
     try {
       openTerminalOnAgent(session);
     } catch (error) {
+      console.warn(
+        "[terminal][browser] falha ao abrir sessao no agent",
+        error instanceof Error ? error.message : error,
+      );
       sendJson(ws, {
         type: "session.error",
-        message:
-          error instanceof Error ? error.message : "Falha ao abrir o terminal no agent remoto.",
+        message: "Falha ao abrir o terminal no agent remoto.",
       });
       ws.close();
       closeTerminalSession(session.sessionId, { notifyBrowser: false });
@@ -590,6 +628,7 @@ export async function openRealtimeTerminalSession(
     sessionId,
     machineId: machine.id,
     openedByUserId: openedBy.userId,
+    openedByActorId: openedBy.actorId,
     cols: input.cols,
     rows: input.rows,
     browserSocket: null,
@@ -597,6 +636,7 @@ export async function openRealtimeTerminalSession(
     expiresAt: Date.now() + PRECONNECT_TTL_MS,
     connectedToAgent: false,
     browserAttached: false,
+    inputAudited: false,
     lastBrowserHeartbeatAt: Date.now(),
     browserHeartbeatTimer: null,
     bootstrapExecution: bootstrapExecution ?? null,
@@ -604,25 +644,28 @@ export async function openRealtimeTerminalSession(
   scheduleSessionExpiry(sessionId);
 
   const createdAt = new Date().toISOString();
-  await dbQuery(
-    `
-      INSERT INTO audit_logs (
-        id, execution_id, machine_id, machine_hostname, actor_type, actor_id, action, message,
-        created_at
-      )
-      VALUES ($1, $2, $3, $4, 'panel', $5, 'terminal.session.opened', $6, $7)
-    `,
-    [
-      crypto.randomUUID(),
-      bootstrapExecution?.executionId ?? null,
-      machine.id,
-      machine.hostname,
-      openedBy.actorId,
-      bootstrapExecution
+  await appendAuditLog(
+    {
+      query: (text, params) => dbQuery(text, params),
+    },
+    {
+      executionId: bootstrapExecution?.executionId ?? null,
+      machineId: machine.id,
+      machineHostname: machine.hostname,
+      actorType: "panel",
+      actorId: openedBy.actorId,
+      action: "terminal.session.opened",
+      message: bootstrapExecution
         ? `Conta ${openedBy.actorId} abriu um terminal ao vivo em ${machine.hostname} para acompanhar a execucao ${bootstrapExecution.executionId}.`
         : `Conta ${openedBy.actorId} abriu um terminal ao vivo na maquina ${machine.hostname}.`,
       createdAt,
-    ],
+      severity: "warn",
+      metadata: {
+        alert: true,
+        openedByUserId: openedBy.userId,
+        bootstrapExecutionId: bootstrapExecution?.executionId ?? null,
+      },
+    },
   );
 
   return {

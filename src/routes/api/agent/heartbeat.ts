@@ -2,32 +2,34 @@ import { createFileRoute } from "@tanstack/react-router";
 import { agentHeartbeatSchema } from "@/lib/agentlx";
 import { authenticateAgentRequest, submitHeartbeat } from "@/server/agent.server";
 import { jsonError, jsonResponse } from "@/server/http.server";
+import {
+  BODY_LIMITS,
+  getErrorStatusCode,
+  publicErrorMessage,
+  readJsonBody,
+} from "@/server/request-body.server";
 
 export const Route = createFileRoute("/api/agent/heartbeat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         try {
-          const rawBody = await request.text();
+          const { rawBody, data } = await readJsonBody(
+            request,
+            agentHeartbeatSchema,
+            BODY_LIMITS.json,
+          );
           const authenticated = await authenticateAgentRequest(
             request,
             "/api/agent/heartbeat",
             rawBody,
           );
-          const body = agentHeartbeatSchema.parse(JSON.parse(rawBody));
-          const result = await submitHeartbeat(authenticated, body);
+          const result = await submitHeartbeat(authenticated, data);
           return jsonResponse(result);
         } catch (error) {
-          const statusCode =
-            typeof error === "object" &&
-            error !== null &&
-            "statusCode" in error &&
-            typeof error.statusCode === "number"
-              ? error.statusCode
-              : 400;
           return jsonError(
-            error instanceof Error ? error.message : "Falha ao processar heartbeat.",
-            statusCode,
+            publicErrorMessage(error, "Falha ao processar heartbeat."),
+            getErrorStatusCode(error) ?? 400,
           );
         }
       },

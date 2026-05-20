@@ -259,6 +259,15 @@ function Templates() {
       return;
     }
 
+    if (
+      executeTemplate.risk === "high" &&
+      !window.confirm(
+        `O template "${executeTemplate.name}" esta marcado como alto risco e sera executado com privilegios do agent no host remoto.\n\nConfirma continuar?`,
+      )
+    ) {
+      return;
+    }
+
     setExecuting(true);
 
     try {

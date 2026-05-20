@@ -390,7 +390,7 @@ PY
 
 fetch_agent_files() {
   local source_dir tmp_dir manifest_file
-  mkdir -p "${INSTALL_DIR}"
+  install -d -m 0700 "${INSTALL_DIR}"
 
   if source_dir="$(resolve_local_source_dir)"; then
     log "copiando runtime local do agent para ${INSTALL_DIR}..."
@@ -477,6 +477,8 @@ with open(config_path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2, ensure_ascii=True)
     handle.write("\n")
 PY
+  chown root:root "${config_file}"
+  chmod 0600 "${config_file}"
 }
 
 create_virtualenv() {

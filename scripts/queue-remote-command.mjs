@@ -1,8 +1,8 @@
 import "dotenv/config";
 
-import { createCipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { createCipheriv, createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import pg from "pg";
-import { prepareRuntimeEnv } from "./env.mjs";
+import { buildDatabaseSslConfig, prepareRuntimeEnv } from "./env.mjs";
 
 const { Client } = pg;
 
@@ -48,6 +48,126 @@ function buildConnectionString() {
   }
 
   return process.env.DATABASE_URL.trim();
+}
+
+function sortJson(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortJson);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, sortJson(item)]),
+    );
+  }
+
+  return value;
+}
+
+function stableJson(value) {
+  return JSON.stringify(sortJson(value));
+}
+
+function computeAuditIntegrityHash(input) {
+  return createHash("sha256")
+    .update(
+      [
+        input.id,
+        input.prevHash,
+        input.createdAt,
+        input.actorType,
+        input.actorId,
+        input.action,
+        input.severity,
+        input.executionId ?? "",
+        input.machineId ?? "",
+        input.machineHostname ?? "",
+        input.message,
+        stableJson(input.metadata),
+      ].join("|"),
+    )
+    .digest("hex");
+}
+
+async function appendAuditLog(client, input) {
+  const id = randomUUID();
+  const createdAt = input.createdAt ?? new Date().toISOString();
+  const metadata = sortJson(input.metadata ?? {});
+  const previous = await client.query(`
+    SELECT integrity_hash
+    FROM audit_logs
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+    FOR UPDATE
+  `);
+  const prevHash = previous.rows[0]?.integrity_hash ?? "";
+  const integrityHash = computeAuditIntegrityHash({
+    id,
+    prevHash,
+    createdAt,
+    actorType: input.actorType,
+    actorId: input.actorId,
+    action: input.action,
+    severity: input.severity,
+    executionId: input.executionId ?? null,
+    machineId: input.machineId ?? null,
+    machineHostname: input.machineHostname ?? null,
+    message: input.message,
+    metadata,
+  });
+
+  await client.query(
+    `
+      INSERT INTO audit_logs (
+        id,
+        execution_id,
+        machine_id,
+        machine_hostname,
+        actor_type,
+        actor_id,
+        action,
+        severity,
+        message,
+        metadata_json,
+        integrity_prev_hash,
+        integrity_hash,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13)
+    `,
+    [
+      id,
+      input.executionId ?? null,
+      input.machineId ?? null,
+      input.machineHostname ?? null,
+      input.actorType,
+      input.actorId,
+      input.action,
+      input.severity,
+      input.message,
+      stableJson(metadata),
+      prevHash || null,
+      integrityHash,
+      createdAt,
+    ],
+  );
+
+  const anchorSecret =
+    process.env.AGENTLX_AUDIT_ANCHOR_SECRET ||
+    process.env.AGENTLX_PENDING_TOKEN_SECRET ||
+    "change-me-pending-token-secret";
+  const anchorHash = createHmac("sha256", anchorSecret).update(integrityHash).digest("hex");
+  await client.query(
+    `
+      INSERT INTO audit_integrity_anchors (
+        id, audit_log_id, integrity_hash, anchor_hash, anchor_version, created_at
+      )
+      VALUES ($1, $2, $3, $4, 1, $5)
+    `,
+    [randomUUID(), id, integrityHash, anchorHash, createdAt],
+  );
 }
 
 function sleep(ms) {
@@ -162,7 +282,7 @@ async function main() {
 
   const client = new Client({
     connectionString: buildConnectionString(),
-    ssl: /^true$/i.test(process.env.DATABASE_SSL || "") ? { rejectUnauthorized: false } : undefined,
+    ssl: buildDatabaseSslConfig(),
   });
 
   await client.connect();
@@ -174,7 +294,6 @@ async function main() {
     }
 
     const executionId = randomUUID();
-    const auditId = randomUUID();
     const requestedAt = new Date().toISOString();
     const redactedCommand = redactSensitiveText(command);
     const encryptedCommand = encryptStoredExecutionCommand(command);
@@ -206,24 +325,18 @@ async function main() {
       ],
     );
 
-    await client.query(
-      `
-        INSERT INTO audit_logs (
-          id, execution_id, machine_id, machine_hostname, actor_type, actor_id, action, message,
-          created_at
-        )
-        VALUES ($1, $2, $3, $4, 'system', $5, 'terminal.requested.cli', $6, $7)
-      `,
-      [
-        auditId,
-        executionId,
-        machine.id,
-        machine.hostname,
-        requestedBy,
-        `CLI queued remote command for ${machine.hostname}: ${redactedCommand.slice(0, 140)}`,
-        requestedAt,
-      ],
-    );
+    await appendAuditLog(client, {
+      executionId,
+      machineId: machine.id,
+      machineHostname: machine.hostname,
+      actorType: "system",
+      actorId: requestedBy,
+      action: "terminal.requested.cli",
+      severity: "warn",
+      message: `CLI queued remote command for ${machine.hostname}: ${redactedCommand.slice(0, 140)}`,
+      metadata: { alert: true, executionKind: "terminal", source: "cli" },
+      createdAt: requestedAt,
+    });
     await client.query("COMMIT");
 
     console.log(`Execution queued: ${executionId}`);

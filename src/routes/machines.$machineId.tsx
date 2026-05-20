@@ -1618,6 +1618,14 @@ function MachineControlModal({
   }, [execution?.id, execution?.status, getExecution, router]);
 
   const run = async () => {
+    if (
+      !window.confirm(
+        `${title} em ${machineHostname} sera executado pelo agent com privilegios elevados.\n\nConfirma continuar?`,
+      )
+    ) {
+      return;
+    }
+
     setState("queued");
     setErrorMessage("");
 

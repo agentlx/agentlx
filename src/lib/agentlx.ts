@@ -52,12 +52,45 @@ export type RecurringScheduleStatus = (typeof recurringScheduleStatusValues)[num
 
 export const MAX_RECURRING_INTERVAL_DAYS = 100_000;
 export const MAX_MACHINE_SCHEDULED_TASK_LIMIT = 50;
+export const LIST_PAGE_LIMIT = 50;
+export const MAX_LIST_PAGE_LIMIT = 100;
 
 export const machineControlActionValues = ["restart", "poweroff"] as const;
 export type MachineControlAction = (typeof machineControlActionValues)[number];
 
 export const machineGroupRoleValues = ["member", "owner"] as const;
 export type MachineGroupRole = (typeof machineGroupRoleValues)[number];
+
+const nullableCursorSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(1024)
+  .optional()
+  .nullable()
+  .transform((value) => value ?? null);
+
+const pageLimitSchema = z.number().int().min(1).max(MAX_LIST_PAGE_LIMIT).default(LIST_PAGE_LIMIT);
+
+export const machinePageInputSchema = z.object({
+  cursor: nullableCursorSchema,
+  limit: pageLimitSchema,
+  search: z.string().trim().max(120).default(""),
+  status: z.enum(["all", ...machineStatusValues]).default("all"),
+});
+
+export const executionLogPageInputSchema = z.object({
+  executionsCursor: nullableCursorSchema,
+  auditsCursor: nullableCursorSchema,
+  limit: pageLimitSchema,
+  auditsLimit: pageLimitSchema,
+});
+
+export type CursorPageInfo = {
+  nextCursor: string | null;
+  hasMore: boolean;
+  limit: number;
+};
 
 export const serviceDetectionSchema = z.object({
   slug: z
@@ -391,6 +424,7 @@ export type MachineGroupAccessView = {
 export type MachinesPageView = {
   machines: MachineView[];
   pendingEnrollments: PendingMachineEnrollmentView[];
+  machinesPageInfo: CursorPageInfo;
 };
 
 export type ActionTemplateView = {
@@ -469,6 +503,8 @@ export type ExecutionFeedView = {
   scheduled: ExecutionLogView[];
   recurringSchedules: RecurringScheduleView[];
   audits: AuditLogView[];
+  executionsPageInfo: CursorPageInfo;
+  auditsPageInfo: CursorPageInfo;
 };
 
 export type MachineDetailView = {

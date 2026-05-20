@@ -311,44 +311,6 @@ CREATE INDEX IF NOT EXISTS idx_action_executions_schedule_id
 CREATE INDEX IF NOT EXISTS idx_audit_logs_machine_id
   ON audit_logs(machine_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_audit_logs_action_created_at
-  ON audit_logs(action, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_metadata_email
-  ON audit_logs ((metadata_json->>'email'), created_at DESC)
-  WHERE metadata_json ? 'email';
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_metadata_ip
-  ON audit_logs ((metadata_json->>'ipAddress'), created_at DESC)
-  WHERE metadata_json ? 'ipAddress';
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_severity_created_at
-  ON audit_logs(severity, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_id
-  ON audit_logs(created_at DESC, id DESC);
-
-CREATE INDEX IF NOT EXISTS idx_action_executions_requested_id
-  ON action_executions(requested_at DESC, id DESC);
-
-CREATE INDEX IF NOT EXISTS idx_machines_hostname_agent_id
-  ON machines ((LOWER(hostname)), agent_id, id);
-
-CREATE INDEX IF NOT EXISTS idx_agents_label_id
-  ON agents ((LOWER(label)), id);
-
-CREATE TABLE IF NOT EXISTS audit_integrity_anchors (
-  id TEXT PRIMARY KEY,
-  audit_log_id TEXT NOT NULL,
-  integrity_hash TEXT NOT NULL,
-  anchor_hash TEXT NOT NULL,
-  anchor_version INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_integrity_anchors_created_at
-  ON audit_integrity_anchors(created_at DESC);
-
 CREATE TABLE IF NOT EXISTS agent_enrollment_tokens (
   id TEXT PRIMARY KEY,
   token_hash TEXT NOT NULL UNIQUE,
@@ -396,7 +358,6 @@ CREATE TABLE IF NOT EXISTS users (
   mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   profile_photo_mime TEXT,
   profile_photo_data TEXT,
-  profile_photo_bytes BYTEA,
   profile_photo_width INTEGER,
   profile_photo_height INTEGER,
   profile_photo_updated_at TEXT,
@@ -417,9 +378,6 @@ ALTER TABLE users
 
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS profile_photo_data TEXT;
-
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS profile_photo_bytes BYTEA;
 
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS profile_photo_width INTEGER;
@@ -476,20 +434,6 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   last_seen_at TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
-
-CREATE TABLE IF NOT EXISTS auth_login_rate_limits (
-  subject_key TEXT PRIMARY KEY,
-  subject_type TEXT NOT NULL CHECK (subject_type IN ('ip', 'email')),
-  failure_count INTEGER NOT NULL DEFAULT 0 CHECK (failure_count >= 0),
-  first_failed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  last_failed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  locked_until TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_auth_login_rate_limits_locked_until
-  ON auth_login_rate_limits(locked_until)
-  WHERE locked_until IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower
   ON users ((LOWER(email)));

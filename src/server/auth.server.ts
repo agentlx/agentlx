@@ -60,6 +60,7 @@ type UserRow = {
   mfa_enabled: boolean;
   profile_photo_mime: string | null;
   profile_photo_data?: string | null;
+  profile_photo_bytes?: Buffer | null;
   profile_photo_width: number | null;
   profile_photo_height: number | null;
   profile_photo_updated_at: string | null;
@@ -89,12 +90,37 @@ type MfaSetupPayload = {
   secret: string;
 };
 
+type LoginRateLimitRow = {
+  subject_key: string;
+  failure_count: number;
+  locked_until: string | Date | null;
+};
+
+const LOGIN_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LOCKOUT_STEPS = [
+  { failures: 15, lockMs: 24 * 60 * 60 * 1000 },
+  { failures: 12, lockMs: 60 * 60 * 1000 },
+  { failures: 8, lockMs: 15 * 60 * 1000 },
+  { failures: 5, lockMs: 5 * 60 * 1000 },
+] as const;
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function timestampText(value: string | Date | null) {
+  if (!value) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : value;
+}
+
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function requestIpAddress() {
+  return getRequestIP({ xForwardedFor: getEnv().AGENTLX_TRUST_PROXY }) ?? "";
 }
 
 function parseAllowedScreens(value: unknown): ScreenPermission[] {
@@ -239,6 +265,7 @@ function parseProfilePhotoDataUrl(imageDataUrl: string) {
   return {
     mime,
     base64: buffer.toString("base64"),
+    buffer,
     byteLength: buffer.length,
     width: dimensions.width,
     height: dimensions.height,
@@ -246,7 +273,8 @@ function parseProfilePhotoDataUrl(imageDataUrl: string) {
 }
 
 function profilePhotoUrl(row: Pick<UserRow, "profile_photo_mime" | "profile_photo_updated_at">) {
-  if (!row.profile_photo_mime || !row.profile_photo_updated_at) {
+  const updatedAt = timestampText(row.profile_photo_updated_at);
+  if (!row.profile_photo_mime || !updatedAt) {
     return null;
   }
 
@@ -254,7 +282,7 @@ function profilePhotoUrl(row: Pick<UserRow, "profile_photo_mime" | "profile_phot
     return null;
   }
 
-  return `/api/profile-photo?v=${encodeURIComponent(row.profile_photo_updated_at)}`;
+  return `/api/profile-photo?v=${encodeURIComponent(updatedAt)}`;
 }
 
 function toViewer(
@@ -286,7 +314,7 @@ function toViewer(
     mfaEnabled: isUserMfaConfigured(row),
     disabled: row.disabled,
     profilePhotoUrl: profilePhotoUrl(row),
-    profilePhotoUpdatedAt: row.profile_photo_updated_at,
+    profilePhotoUpdatedAt: timestampText(row.profile_photo_updated_at),
   };
 }
 
@@ -411,12 +439,170 @@ async function countRecentFailedMfa(userId: string, ipAddress: string, since: st
   return Number(result.rows[0]?.count ?? 0);
 }
 
+function loginRateLimitSubjects(email: string, ipAddress: string) {
+  const subjects: Array<{ key: string; type: "email" | "ip"; value: string }> = [];
+  const normalizedEmail = normalizeEmail(email);
+  if (normalizedEmail) {
+    subjects.push({ key: `email:${normalizedEmail}`, type: "email", value: normalizedEmail });
+  }
+  if (ipAddress) {
+    subjects.push({ key: `ip:${ipAddress}`, type: "ip", value: ipAddress });
+  }
+  return subjects;
+}
+
+function lockoutUntilForFailureCount(failureCount: number, now = Date.now()) {
+  const step = LOGIN_LOCKOUT_STEPS.find((item) => failureCount >= item.failures);
+  return step ? new Date(now + step.lockMs).toISOString() : null;
+}
+
+function normalizeTimestamp(value: string | Date | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+async function assertLoginNotRateLimited(email: string, ipAddress: string) {
+  const subjects = loginRateLimitSubjects(email, ipAddress);
+  if (subjects.length === 0) {
+    return;
+  }
+
+  const result = await dbQuery<LoginRateLimitRow>(
+    `
+      SELECT subject_key, failure_count, locked_until
+      FROM auth_login_rate_limits
+      WHERE subject_key = ANY($1::text[])
+        AND locked_until IS NOT NULL
+        AND locked_until > $2
+      ORDER BY locked_until DESC
+      LIMIT 1
+    `,
+    [subjects.map((subject) => subject.key), new Date().toISOString()],
+  );
+  const locked = result.rows[0];
+  if (!locked) {
+    return;
+  }
+
+  const lockedUntil = normalizeTimestamp(locked.locked_until);
+  await appendAuditLog(auditClient(), {
+    actorType: "system",
+    actorId: ipAddress || normalizeEmail(email) || "unknown",
+    action: "auth.login.blocked",
+    severity: "warn",
+    message: `Tentativa de login bloqueada por rate limit para ${normalizeEmail(email) || "conta desconhecida"}.`,
+    metadata: {
+      alert: true,
+      email: normalizeEmail(email),
+      ipAddress,
+      subjectKey: locked.subject_key,
+      failureCount: locked.failure_count,
+      lockedUntil,
+    },
+  });
+
+  throw new Error(
+    lockedUntil
+      ? `Muitas tentativas invalidas. Tente novamente apos ${new Date(lockedUntil).toLocaleTimeString("pt-BR")}.`
+      : "Muitas tentativas invalidas. Aguarde alguns minutos e tente novamente.",
+  );
+}
+
+async function recordLoginRateLimitFailure(email: string, ipAddress: string) {
+  const subjects = loginRateLimitSubjects(email, ipAddress);
+  if (subjects.length === 0) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const windowStart = new Date(Date.now() - LOGIN_FAILURE_WINDOW_MS).toISOString();
+
+  for (const subject of subjects) {
+    const result = await dbQuery<LoginRateLimitRow>(
+      `
+        INSERT INTO auth_login_rate_limits (
+          subject_key,
+          subject_type,
+          failure_count,
+          first_failed_at,
+          last_failed_at,
+          locked_until,
+          updated_at
+        )
+        VALUES ($1, $2, 1, $3, $3, NULL, $3)
+        ON CONFLICT (subject_key) DO UPDATE
+        SET
+          failure_count = CASE
+            WHEN auth_login_rate_limits.first_failed_at <= $4 THEN 1
+            ELSE auth_login_rate_limits.failure_count + 1
+          END,
+          first_failed_at = CASE
+            WHEN auth_login_rate_limits.first_failed_at <= $4 THEN $3
+            ELSE auth_login_rate_limits.first_failed_at
+          END,
+          last_failed_at = $3,
+          updated_at = $3
+        RETURNING subject_key, failure_count, locked_until
+      `,
+      [subject.key, subject.type, now, windowStart],
+    );
+
+    const failureCount = Number(result.rows[0]?.failure_count ?? 1);
+    const lockedUntil = lockoutUntilForFailureCount(failureCount);
+    if (!lockedUntil) {
+      continue;
+    }
+
+    await dbQuery(
+      `
+        UPDATE auth_login_rate_limits
+        SET locked_until = $2, updated_at = $3
+        WHERE subject_key = $1
+      `,
+      [subject.key, lockedUntil, now],
+    );
+
+    await appendAuditLog(auditClient(), {
+      actorType: "system",
+      actorId: ipAddress || normalizeEmail(email) || "unknown",
+      action: "auth.login.locked",
+      severity: failureCount >= 12 ? "critical" : "warn",
+      message: `Rate limit ativado para ${subject.type === "email" ? "e-mail" : "IP"} apos ${failureCount} falhas de login.`,
+      createdAt: now,
+      metadata: {
+        alert: true,
+        email: normalizeEmail(email),
+        ipAddress,
+        subjectKey: subject.key,
+        subjectType: subject.type,
+        failureCount,
+        lockedUntil,
+      },
+    });
+  }
+}
+
+async function clearLoginRateLimit(email: string, ipAddress: string) {
+  const subjects = loginRateLimitSubjects(email, ipAddress);
+  if (subjects.length === 0) {
+    return;
+  }
+
+  await dbQuery("DELETE FROM auth_login_rate_limits WHERE subject_key = ANY($1::text[])", [
+    subjects.map((subject) => subject.key),
+  ]);
+}
+
 async function recordFailedLoginAttempt(email: string) {
   const normalizedEmail = normalizeEmail(email);
-  const ipAddress = getRequestIP({ xForwardedFor: true }) ?? "";
+  const ipAddress = requestIpAddress();
   const userAgent = getRequestHeader("user-agent") ?? "";
   const now = new Date().toISOString();
   const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+  await recordLoginRateLimitFailure(normalizedEmail, ipAddress);
 
   await appendAuditLog(auditClient(), {
     actorType: "system",
@@ -491,6 +677,8 @@ async function findUserByEmail(email: string) {
         mfa_secret,
         mfa_enabled,
         profile_photo_mime,
+        profile_photo_data,
+        profile_photo_bytes,
         profile_photo_width,
         profile_photo_height,
         profile_photo_updated_at,
@@ -715,10 +903,11 @@ export async function getProfilePhotoForViewer(userId: string) {
   const result = await dbQuery<{
     profile_photo_mime: string | null;
     profile_photo_data: string | null;
+    profile_photo_bytes: Buffer | null;
     profile_photo_updated_at: string | null;
   }>(
     `
-      SELECT profile_photo_mime, profile_photo_data, profile_photo_updated_at
+      SELECT profile_photo_mime, profile_photo_data, profile_photo_bytes, profile_photo_updated_at
       FROM users
       WHERE id = $1
       LIMIT 1
@@ -727,7 +916,7 @@ export async function getProfilePhotoForViewer(userId: string) {
   );
 
   const row = result.rows[0];
-  if (!row?.profile_photo_mime || !row.profile_photo_data) {
+  if (!row?.profile_photo_mime || (!row.profile_photo_bytes && !row.profile_photo_data)) {
     return null;
   }
 
@@ -737,8 +926,8 @@ export async function getProfilePhotoForViewer(userId: string) {
 
   return {
     mime: row.profile_photo_mime,
-    data: Buffer.from(row.profile_photo_data, "base64"),
-    updatedAt: row.profile_photo_updated_at,
+    data: row.profile_photo_bytes ?? Buffer.from(row.profile_photo_data ?? "", "base64"),
+    updatedAt: timestampText(row.profile_photo_updated_at),
   };
 }
 
@@ -778,6 +967,11 @@ export async function requireAdminViewer() {
 export async function loginUser(email: string, password: string) {
   assertDeploymentReady();
   const normalizedEmail = normalizeEmail(email);
+  const ipAddress = requestIpAddress();
+  const userAgent = getRequestHeader("user-agent") ?? "";
+
+  await assertLoginNotRateLimited(normalizedEmail, ipAddress);
+
   const user = await findUserByEmail(email);
   if (!user || user.disabled) {
     await recordFailedLoginAttempt(normalizedEmail);
@@ -790,8 +984,7 @@ export async function loginUser(email: string, password: string) {
     throw new Error("Credenciais invalidas.");
   }
 
-  const ipAddress = getRequestIP({ xForwardedFor: true }) ?? "";
-  const userAgent = getRequestHeader("user-agent") ?? "";
+  await clearLoginRateLimit(normalizedEmail, ipAddress);
 
   if (isUserMfaConfigured(user)) {
     await appendAuditLog(auditClient(), {
@@ -906,7 +1099,12 @@ export async function createUser(input: CreateUserInput) {
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6::jsonb, NULL, FALSE, NULL, NULL, FALSE, 1, $7, $8)
+      VALUES (
+        $1, $2, $3, $4, $5, $6::jsonb,
+        NULL, FALSE,
+        NULL, NULL, NULL, NULL, NULL, NULL,
+        FALSE, 1, $7, $8
+      )
     `,
     [
       randomUUID(),
@@ -1080,7 +1278,7 @@ export async function changeOwnPassword(input: ChangePasswordInput) {
   }
 
   await createSessionForUser(refreshed, {
-    ipAddress: getRequestIP({ xForwardedFor: true }) ?? undefined,
+    ipAddress: requestIpAddress() || undefined,
     userAgent: getRequestHeader("user-agent"),
   });
 
@@ -1100,7 +1298,8 @@ export async function updateOwnProfilePhoto(input: UpdateProfilePhotoInput) {
     `
       UPDATE users
       SET profile_photo_mime = $2,
-          profile_photo_data = $3,
+          profile_photo_data = NULL,
+          profile_photo_bytes = $3,
           profile_photo_width = $4,
           profile_photo_height = $5,
           profile_photo_updated_at = $6,
@@ -1124,7 +1323,7 @@ export async function updateOwnProfilePhoto(input: UpdateProfilePhotoInput) {
         created_at,
         updated_at
     `,
-    [user.id, photo.mime, photo.base64, photo.width, photo.height, now],
+    [user.id, photo.mime, photo.buffer, photo.width, photo.height, now],
   );
 
   const updated = result.rows[0];
@@ -1274,7 +1473,7 @@ export async function verifyOwnMfaSetup(input: MfaCodeInput) {
 export async function validateMfaLogin(input: MfaCodeInput) {
   assertDeploymentReady();
   const pending = readEncryptedCookie<MfaPendingPayload>(MFA_PENDING_COOKIE_NAME);
-  const ipAddress = getRequestIP({ xForwardedFor: true }) ?? "";
+  const ipAddress = requestIpAddress();
   const userAgent = getRequestHeader("user-agent") ?? "";
 
   if (!pending) {

@@ -3,8 +3,10 @@ import {
   createMachineGroupInputSchema,
   createMachineEnrollmentInputSchema,
   finalizeMachineEnrollmentInputSchema,
+  executionLogPageInputSchema,
   createActionTemplateInputSchema,
   executeActionInputSchema,
+  machinePageInputSchema,
   executionLookupSchema,
   machineGroupAssignmentInputSchema,
   machineControlActionInputSchema,
@@ -34,6 +36,15 @@ export const getMachinesData = createServerFn({ method: "GET" }).handler(async (
   const { getMachinesView } = await import("@/server/panel.server");
   return getMachinesView(viewer.id);
 });
+
+export const getMachinesPageAction = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => machinePageInputSchema.parse(data ?? {}))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("machines");
+    const { getMachinesView } = await import("@/server/panel.server");
+    return getMachinesView(viewer.id, data);
+  });
 
 export const createMachineEnrollmentCommandAction = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createMachineEnrollmentInputSchema.parse(data))
@@ -123,6 +134,15 @@ export const getExecutionLogsData = createServerFn({ method: "GET" }).handler(as
   const { getExecutionLogFeed } = await import("@/server/panel.server");
   return getExecutionLogFeed(viewer.id);
 });
+
+export const getExecutionLogsPageAction = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => executionLogPageInputSchema.parse(data ?? {}))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("logs");
+    const { getExecutionLogFeed } = await import("@/server/panel.server");
+    return getExecutionLogFeed(viewer.id, data);
+  });
 
 export const getExecutionDetailData = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => executionLookupSchema.parse(data))

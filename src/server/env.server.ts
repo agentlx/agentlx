@@ -89,11 +89,17 @@ const envSchema = z.object({
     .transform((value) =>
       value == null ? process.env.NODE_ENV === "production" : /^true$/i.test(value),
     ),
+  DATABASE_SSL_REJECT_UNAUTHORIZED: envBoolean(true),
+  DATABASE_SSL_CA: z.string().default(""),
+  DATABASE_SSL_CA_PATH: z.string().default(""),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
   DATABASE_CONNECT_RETRIES: z.coerce.number().int().positive().default(20),
   DATABASE_CONNECT_RETRY_DELAY_MS: z.coerce.number().int().positive().default(2000),
+  DATABASE_RUN_MIGRATIONS_ON_BOOT: envBoolean(true),
   AGENTLX_TRUST_PROXY: envBoolean(false),
   AGENTLX_PENDING_TOKEN_SECRET: z.string().min(16).default("change-me-pending-token-secret"),
+  AGENTLX_AUDIT_ANCHOR_SECRET: optionalEnvString(z.string().min(16)),
+  AGENTLX_AUDIT_ANCHOR_FILE: z.string().default(""),
   AGENTLX_MFA_ENCRYPTION_SECRET: optionalEnvString(z.string().min(16)),
   AGENTLX_MFA_ENCRYPTION_SECRET_PREVIOUS: z.string().default(""),
   AGENTLX_MFA_ISSUER: z.string().min(1).default("agentlx"),
@@ -105,6 +111,12 @@ const envSchema = z.object({
     .transform((value) =>
       value == null ? process.env.NODE_ENV !== "production" : /^true$/i.test(value),
     ),
+  AGENTLX_MAINTENANCE_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
+  AGENTLX_SESSION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+  AGENTLX_ENROLLMENT_RETENTION_DAYS: z.coerce.number().int().positive().default(7),
+  AGENTLX_EXECUTION_RETENTION_DAYS: z.coerce.number().int().positive().default(180),
+  AGENTLX_INVENTORY_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+  AGENTLX_AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(365),
 });
 
 let cachedEnv: z.infer<typeof envSchema> | null = null;
@@ -232,6 +244,14 @@ export function getDeploymentSecurityState(request?: Request) {
 
     if (env.AGENTLX_PENDING_TOKEN_SECRET === "change-me-pending-token-secret") {
       reasons.push("AGENTLX_PENDING_TOKEN_SECRET precisa ser alterado em producao.");
+    }
+
+    if (env.AGENTLX_SEED_ON_BOOT) {
+      reasons.push("AGENTLX_SEED_ON_BOOT precisa ficar desativado em producao.");
+    }
+
+    if (env.DATABASE_SSL && !env.DATABASE_SSL_REJECT_UNAUTHORIZED) {
+      reasons.push("DATABASE_SSL_REJECT_UNAUTHORIZED nao pode ser false em producao.");
     }
   }
 

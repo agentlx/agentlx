@@ -41,6 +41,18 @@ type RemoteTerminalTemplate = {
   risk: "low" | "medium" | "high";
 };
 
+function isHighRiskTerminalInput(text: string) {
+  const normalized = text.toLocaleLowerCase("pt-BR");
+  return [
+    /\brm\s+-[^\r\n;|&]*r[^\r\n;|&]*f\s+\/(?:\s|$)/,
+    /\b(?:reboot|poweroff|halt|shutdown)\b/,
+    /\bmkfs(?:\.[a-z0-9]+)?\b/,
+    /\bdd\s+if=/,
+    /\bsystemctl\s+(?:stop|disable|mask)\b/,
+    /\b(?:curl|wget)\b[\s\S]{0,200}\|\s*(?:sh|bash)\b/,
+  ].some((pattern) => pattern.test(normalized));
+}
+
 export function RemoteTerminal({
   machineId,
   machineStatus,
@@ -67,6 +79,16 @@ export function RemoteTerminal({
   const [terminalReady, setTerminalReady] = useState(false);
 
   const sendTerminalInput = (text: string) => {
+    if (
+      isHighRiskTerminalInput(text) &&
+      !window.confirm(
+        "Este comando pode alterar o estado da maquina ou executar codigo remoto com privilegios elevados.\n\nConfirma o envio ao terminal?",
+      )
+    ) {
+      terminalRef.current?.writeln("\r\n[BLOCKED] Comando de alto risco cancelado pelo usuario.");
+      return false;
+    }
+
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return false;
@@ -254,13 +276,19 @@ export function RemoteTerminal({
       };
 
       socket.onmessage = (event) => {
-        const payload = JSON.parse(String(event.data)) as {
+        let payload: {
           type: string;
           data?: string;
           message?: string;
           exitCode?: number | null;
           active?: boolean;
         };
+        try {
+          payload = JSON.parse(String(event.data)) as typeof payload;
+        } catch {
+          terminal.writeln("\r\n[ERRO] Mensagem invalida recebida do tunel remoto.");
+          return;
+        }
 
         if (payload.type === "session.ready") {
           terminal.writeln(
@@ -464,6 +492,11 @@ export function RemoteTerminal({
             heartbeat.
           </div>
         )}
+
+        <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs leading-5 text-warning">
+          Este terminal abre um shell privilegiado no host remoto. Tudo que for digitado aqui pode
+          alterar o sistema e fica associado a sua sessao no log de auditoria.
+        </div>
 
         {errorMessage && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">

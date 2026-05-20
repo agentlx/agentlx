@@ -12,13 +12,8 @@ export const Route = createFileRoute("/api/agent/files/runtime-manifest")({
               "cache-control": "no-store",
             },
           });
-        } catch (error) {
-          return jsonError(
-            error instanceof Error
-              ? error.message
-              : "Nao foi possivel carregar o manifesto do agent.",
-            500,
-          );
+        } catch {
+          return jsonError("Nao foi possivel carregar o manifesto do agent.", 500);
         }
       },
     },
