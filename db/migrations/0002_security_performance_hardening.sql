@@ -64,6 +64,9 @@ SET auth_token_issued_at = registered_at
 WHERE auth_token_issued_at = '';
 
 ALTER TABLE agents
+  ALTER COLUMN auth_token_issued_at DROP DEFAULT;
+
+ALTER TABLE agents
   ALTER COLUMN auth_token_issued_at TYPE TIMESTAMPTZ USING auth_token_issued_at::timestamptz,
   ALTER COLUMN auth_token_last_rotated_at TYPE TIMESTAMPTZ USING NULLIF(auth_token_last_rotated_at, '')::timestamptz,
   ALTER COLUMN auth_token_last_used_at TYPE TIMESTAMPTZ USING NULLIF(auth_token_last_used_at, '')::timestamptz,

@@ -4,6 +4,12 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.7 - 2026-05-20
+
+### Fixed
+
+- Fix PostgreSQL migration failure when converting `agents.auth_token_issued_at` from `TEXT` to `TIMESTAMPTZ` during database initialization.
+
 ## 1.0.6 - 2026-05-19
 
 ### Added
