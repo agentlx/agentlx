@@ -4,6 +4,13 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.8 - 2026-05-20
+
+### Fixed
+
+- Restore client-side hydration on the login page by allowing the inline scripts required by the TanStack Start SSR runtime in the Content Security Policy.
+- Fix the login form remaining disabled after typing credentials in Docker/production builds.
+
 ## 1.0.7 - 2026-05-20
 
 ### Fixed
