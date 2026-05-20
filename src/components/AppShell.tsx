@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-ro
 import { useServerFn } from "@tanstack/react-start";
 import {
   FileText,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -92,6 +93,20 @@ export function AppShell({
           </Link>
         );
       })}
+      {viewer && (
+        <Link
+          to="/license"
+          onClick={() => setMobileNavOpen(false)}
+          className={`flex items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors ${
+            pathname.startsWith("/license")
+              ? "border-primary/20 bg-primary/10 text-primary"
+              : "border-transparent text-muted-foreground hover:bg-white/5 hover:text-foreground"
+          }`}
+        >
+          <KeyRound className="size-4" />
+          <span>Licenca</span>
+        </Link>
+      )}
     </nav>
   );
 

@@ -100,7 +100,7 @@ function Templates() {
   const queueTemplateExecution = useServerFn(queueTemplateExecutionAction);
   const createRecurringTemplateSchedule = useServerFn(createRecurringTemplateScheduleAction);
   const navigate = useNavigate();
-  const { templates, machines } = Route.useLoaderData();
+  const { templates, machines, enterpriseFeatures } = Route.useLoaderData();
   const [formMode, setFormMode] = useState<TemplateFormMode | null>(null);
   const [createState, setCreateState] = useState<CreateFormState>(() => emptyCreateState());
   const [savedTemplateForExecution, setSavedTemplateForExecution] =
@@ -797,6 +797,10 @@ function Templates() {
                     </button>
                     <button
                       onClick={() => {
+                        if (!enterpriseFeatures.recurringJobs) {
+                          toast.error("Recorrencias estao disponiveis na edicao Enterprise.");
+                          return;
+                        }
                         setScheduleMode("recurring");
                         setScheduledFor((currentValue) => {
                           if (!currentValue) {
@@ -814,10 +818,17 @@ function Templates() {
                           return currentValue;
                         });
                       }}
+                      title={
+                        enterpriseFeatures.recurringJobs
+                          ? "Criar recorrencia"
+                          : "Disponivel na edicao Enterprise"
+                      }
                       className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
                         scheduleMode === "recurring"
                           ? "border-primary/30 bg-primary/10 text-primary"
-                          : "border-border hover:bg-secondary"
+                          : enterpriseFeatures.recurringJobs
+                            ? "border-border hover:bg-secondary"
+                            : "border-border text-muted-foreground opacity-70"
                       }`}
                     >
                       Recorrente

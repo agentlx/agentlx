@@ -50,6 +50,7 @@ import {
 import { appendAuditLog } from "./audit.server";
 import { dbQuery, withTransaction } from "./db.server";
 import { getEnv } from "./env.server";
+import { hasEnterpriseFeature, requireEnterpriseFeature } from "./edition.server";
 import {
   decryptPendingToken,
   encryptPendingToken,
@@ -2057,6 +2058,8 @@ export async function updateMachineAgentName(
 export async function updateMachineScheduledTaskLimit(
   input: UpdateMachineScheduledTaskLimitInput & { requestedBy: string; requestedByUserId: string },
 ): Promise<{ scheduledTaskLimit: number }> {
+  await requireEnterpriseFeature("high_scale_limits");
+
   await withTransaction(async (client) => {
     await assertViewerCanAccessMachine(input.machineId, input.requestedByUserId, client);
     await assertViewerCanEditMachineScheduledTaskLimit(
@@ -2126,12 +2129,14 @@ export async function getMachineDetailView(
     canAccessGroupsScreen: boolean;
   },
 ): Promise<MachineDetailView | null> {
-  const [machines, logs, templates, canEditScheduledTaskLimit] = await Promise.all([
-    loadMachines(machineId, viewer.userId),
-    loadExecutions(machineId, undefined, viewer.userId, MACHINE_DETAIL_EXECUTION_LIMIT),
-    loadTemplates(),
-    canEditMachineScheduledTaskLimit(machineId, viewer.userId),
-  ]);
+  const [machines, logs, templates, canEditScheduledTaskLimit, canUseHighScaleLimits] =
+    await Promise.all([
+      loadMachines(machineId, viewer.userId),
+      loadExecutions(machineId, undefined, viewer.userId, MACHINE_DETAIL_EXECUTION_LIMIT),
+      loadTemplates(),
+      canEditMachineScheduledTaskLimit(machineId, viewer.userId),
+      hasEnterpriseFeature("high_scale_limits"),
+    ]);
 
   const machine = machines[0];
   if (!machine) {
@@ -2139,7 +2144,9 @@ export async function getMachineDetailView(
   }
 
   return {
-    machine: toMachineView(machine, { canEditScheduledTaskLimit }),
+    machine: toMachineView(machine, {
+      canEditScheduledTaskLimit: canEditScheduledTaskLimit && canUseHighScaleLimits,
+    }),
     logs: logs.map(toExecutionLogView),
     templates: templates.map(toTemplateView),
     groupAccess: await buildMachineGroupAccess(machineId, viewer),
@@ -2147,13 +2154,17 @@ export async function getMachineDetailView(
 }
 
 export async function getTemplateCatalogView(viewerUserId: string): Promise<TemplateCatalogView> {
-  const [templates, machines] = await Promise.all([
+  const [templates, machines, recurringJobs] = await Promise.all([
     loadTemplates(),
     loadMachineOptions(viewerUserId, MACHINE_LIST_LIMIT),
+    hasEnterpriseFeature("recurring_jobs"),
   ]);
   return {
     templates: templates.map(toTemplateView),
     machines: machines.map((machine) => toMachineView(machine)),
+    enterpriseFeatures: {
+      recurringJobs,
+    },
   };
 }
 
@@ -2759,6 +2770,8 @@ function resolveScheduleStartsAt(startsAt: string) {
 export async function createRecurringTemplateSchedule(
   input: RecurringTemplateScheduleInput & { requestedByUserId: string },
 ): Promise<RecurringScheduleView> {
+  await requireEnterpriseFeature("recurring_jobs");
+
   const schedule = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
@@ -3075,6 +3088,8 @@ export async function startRealtimeTemplateExecution(
     requestedByUserId: string;
   },
 ): Promise<RealtimeTemplateExecutionView> {
+  await requireEnterpriseFeature("terminal_collaboration");
+
   const created = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {

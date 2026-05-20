@@ -21,7 +21,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@agentlx/enterprise": ["./src/enterprise/community.ts"],
+      "@agentlx/enterprise/types": ["./src/enterprise/types.ts"]
     }
   }
 }

@@ -80,6 +80,32 @@ async function runMigrations() {
         throw error;
       }
     }
+
+    const enterprise = await import("@agentlx/enterprise");
+    const enterpriseMigrations =
+      enterprise.getEnterpriseProvider().getEnterpriseMigrations?.() ?? [];
+    for (const migration of enterpriseMigrations) {
+      const migrationId = `enterprise:${migration.id}`;
+      const applied = await client.query<{ id: string }>(
+        "SELECT id FROM schema_migrations WHERE id = $1 LIMIT 1",
+        [migrationId],
+      );
+      if (applied.rows[0]) {
+        continue;
+      }
+
+      await client.query("BEGIN");
+      try {
+        for (const statement of splitSqlStatements(migration.sql)) {
+          await client.query(statement);
+        }
+        await client.query("INSERT INTO schema_migrations (id) VALUES ($1)", [migrationId]);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    }
   } finally {
     client.release();
   }

@@ -496,6 +496,9 @@ export type AuditLogView = {
 export type TemplateCatalogView = {
   templates: ActionTemplateView[];
   machines: MachineView[];
+  enterpriseFeatures: {
+    recurringJobs: boolean;
+  };
 };
 
 export type ExecutionFeedView = {

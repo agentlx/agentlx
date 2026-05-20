@@ -14,6 +14,7 @@ import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LicenseRouteImport } from './routes/license'
 import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MachinesIndexRouteImport } from './routes/machines.index'
@@ -59,6 +60,11 @@ const LogsRoute = LogsRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LicenseRoute = LicenseRouteImport.update({
+  id: '/license',
+  path: '/license',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GroupsRoute = GroupsRouteImport.update({
@@ -174,6 +180,7 @@ const ApiAgentExecutionsResultRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/groups': typeof GroupsRoute
+  '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/profile': typeof ProfileRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/groups': typeof GroupsRoute
+  '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/profile': typeof ProfileRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/groups': typeof GroupsRoute
+  '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/profile': typeof ProfileRoute
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/groups'
+    | '/license'
     | '/login'
     | '/logs'
     | '/profile'
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/groups'
+    | '/license'
     | '/login'
     | '/logs'
     | '/profile'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/groups'
+    | '/license'
     | '/login'
     | '/logs'
     | '/profile'
@@ -346,6 +358,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GroupsRoute: typeof GroupsRoute
+  LicenseRoute: typeof LicenseRoute
   LoginRoute: typeof LoginRoute
   LogsRoute: typeof LogsRoute
   ProfileRoute: typeof ProfileRoute
@@ -407,6 +420,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/license': {
+      id: '/license'
+      path: '/license'
+      fullPath: '/license'
+      preLoaderRoute: typeof LicenseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/groups': {
@@ -562,6 +582,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GroupsRoute: GroupsRoute,
+  LicenseRoute: LicenseRoute,
   LoginRoute: LoginRoute,
   LogsRoute: LogsRoute,
   ProfileRoute: ProfileRoute,

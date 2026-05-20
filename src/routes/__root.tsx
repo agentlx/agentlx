@@ -12,7 +12,7 @@ import { DeploymentLockScreen } from "@/components/DeploymentLockScreen";
 import { PageLoading } from "@/components/PageLoading";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth-provider";
-import { APP_DESCRIPTION, APP_NAME, BRAND_ICON_DATA_URI } from "@/lib/brand";
+import { APP_DESCRIPTION, APP_NAME, BRAND_MARK_URL } from "@/lib/brand";
 import { browserDeploymentFallback, type DeploymentSecurityState } from "@/lib/deployment";
 
 import appCss from "../styles.css?url";
@@ -87,7 +87,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary" },
     ],
     links: [
-      { rel: "icon", href: BRAND_ICON_DATA_URI, type: "image/svg+xml" },
+      { rel: "icon", href: BRAND_MARK_URL, type: "image/png" },
       { rel: "stylesheet", href: appCss },
     ],
   }),
