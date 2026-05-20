@@ -4,6 +4,20 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.9 - 2026-05-20
+
+### Changed
+
+- Reduce agent heartbeat payloads by omitting service inventory when the inventory cache has not refreshed.
+- Reduce database work on agent authentication by moving expired nonce cleanup out of the per-request hot path.
+- Reduce dashboard and template catalog query cost by using lighter machine queries where service aggregation is not needed.
+- Reduce terminal WebSocket CPU spikes by increasing the default output batching window and throttling tmux process detection.
+- Run retention cleanup in smaller batches to reduce database lock and IO spikes.
+
+### Fixed
+
+- Add an explicit AgentLX `User-Agent` to Python agent HTTP and WebSocket requests to avoid proxy/WAF blocks during registration.
+
 ## 1.0.8 - 2026-05-20
 
 ### Fixed

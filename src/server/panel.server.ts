@@ -1147,6 +1147,78 @@ async function loadMachines(machineId?: string, viewerUserId?: string, limit?: n
   return result.rows;
 }
 
+async function loadDashboardMachines(viewerUserId: string, limit = 10) {
+  const result = await dbQuery<MachineRow>(
+    `
+      SELECT
+        m.id,
+        m.agent_id,
+        a.label AS agent_label,
+        m.hostname,
+        m.ip,
+        m.os,
+        m.distro_id,
+        m.distro_family,
+        m.distro_version,
+        m.kernel,
+        m.arch,
+        m.location,
+        m.uptime_sec,
+        m.cpu_percent,
+        m.ram_used_gb,
+        m.ram_total_gb,
+        m.disk_percent,
+        m.scheduled_task_limit,
+        m.last_seen_at,
+        '{}'::text[] AS services
+      FROM machines m
+      INNER JOIN agents a ON a.id = m.agent_id
+      WHERE ${machineAccessCondition("m.id", "$1")}
+      ORDER BY LOWER(m.hostname) ASC, LOWER(a.label) ASC, m.id ASC
+      LIMIT $2
+    `,
+    [viewerUserId, limit],
+  );
+
+  return result.rows;
+}
+
+async function loadMachineOptions(viewerUserId: string, limit = MACHINE_LIST_LIMIT) {
+  const result = await dbQuery<MachineRow>(
+    `
+      SELECT
+        m.id,
+        m.agent_id,
+        a.label AS agent_label,
+        m.hostname,
+        m.ip,
+        m.os,
+        m.distro_id,
+        m.distro_family,
+        m.distro_version,
+        m.kernel,
+        m.arch,
+        m.location,
+        m.uptime_sec,
+        m.cpu_percent,
+        m.ram_used_gb,
+        m.ram_total_gb,
+        m.disk_percent,
+        m.scheduled_task_limit,
+        m.last_seen_at,
+        '{}'::text[] AS services
+      FROM machines m
+      INNER JOIN agents a ON a.id = m.agent_id
+      WHERE ${machineAccessCondition("m.id", "$1")}
+      ORDER BY LOWER(m.hostname) ASC, LOWER(a.label) ASC, m.id ASC
+      LIMIT $2
+    `,
+    [viewerUserId, limit],
+  );
+
+  return result.rows;
+}
+
 function machineStatusSqlExpression() {
   return `
     CASE
@@ -1694,16 +1766,11 @@ async function buildMachineGroupAccess(
 
 export async function getDashboardView(viewerUserId: string): Promise<DashboardView> {
   const [machines, executions, stats] = await Promise.all([
-    loadMachines(undefined, viewerUserId, 10),
+    loadDashboardMachines(viewerUserId, 10),
     loadExecutions(undefined, undefined, viewerUserId, DASHBOARD_EXECUTION_LIMIT),
     loadDashboardMachineStats(viewerUserId),
   ]);
-  const machineViews = machines.map((machine) => toMachineView(machine));
-  const dashboardMachines = [...machineViews]
-    .sort((left, right) =>
-      left.hostname.localeCompare(right.hostname, "pt-BR", { sensitivity: "base" }),
-    )
-    .slice(0, 10);
+  const dashboardMachines = machines.map((machine) => toMachineView(machine));
   const recentExecutions = executions.slice(0, 6).map(toExecutionLogView);
 
   return {
@@ -2082,7 +2149,7 @@ export async function getMachineDetailView(
 export async function getTemplateCatalogView(viewerUserId: string): Promise<TemplateCatalogView> {
   const [templates, machines] = await Promise.all([
     loadTemplates(),
-    loadMachines(undefined, viewerUserId, MACHINE_LIST_LIMIT),
+    loadMachineOptions(viewerUserId, MACHINE_LIST_LIMIT),
   ]);
   return {
     templates: templates.map(toTemplateView),

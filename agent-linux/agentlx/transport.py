@@ -19,6 +19,8 @@ from .utils import iso_now
 if TYPE_CHECKING:
     from .inventory import SnapshotCollector
 
+AGENT_HTTP_USER_AGENT = "agentlx-linux/0.1 (+https://agentlx.com.br)"
+
 
 def sign_agent_request(
     agent_secret: str,
@@ -43,7 +45,11 @@ def api_request(
     extra_headers: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     url = config["api_base_url"].rstrip("/") + path
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": AGENT_HTTP_USER_AGENT,
+    }
     if extra_headers:
         headers.update(extra_headers)
 
@@ -144,6 +150,10 @@ def send_heartbeat(
     snapshot, inventory_refreshed = collector.collect_snapshot(
         force_inventory_refresh=force_inventory_refresh
     )
+    if not inventory_refreshed:
+        snapshot = dict(snapshot)
+        snapshot.pop("services", None)
+
     payload = {
         "agentVersion": config.get("agent_version", DEFAULT_AGENT_VERSION),
         "snapshot": snapshot,

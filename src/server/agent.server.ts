@@ -342,7 +342,6 @@ export async function authenticateAgentMessage(input: {
   const createdAt = new Date().toISOString();
   const expiresAt = new Date(now + AGENT_REQUEST_SIGNATURE_WINDOW_MS).toISOString();
 
-  await dbQuery("DELETE FROM agent_request_nonces WHERE expires_at <= $1", [createdAt]);
   const nonceInsert = await dbQuery<{ nonce: string }>(
     `
       INSERT INTO agent_request_nonces (token_hash, nonce, request_path, created_at, expires_at)
@@ -1051,7 +1050,6 @@ export async function submitHeartbeat(
     throw new Error("Máquina vinculada ao agent não foi encontrada.");
   }
 
-  const services = normalizeServices(input.snapshot.services);
   const distribution = snapshotDistribution(input.snapshot);
   const collectedAt =
     input.snapshot.collectedAt ?? input.lastHeartbeatAt ?? new Date().toISOString();
@@ -1121,6 +1119,7 @@ export async function submitHeartbeat(
     );
 
     if (shouldRefreshInventory) {
+      const services = normalizeServices(input.snapshot.services);
       await replaceMachineServices(client, machine.id, services, collectedAt);
       await insertInventory(client, machine.id, { ...input.snapshot, collectedAt }, services);
       auditEntries.push({

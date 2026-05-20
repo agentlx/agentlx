@@ -31,7 +31,7 @@ Exemplo em producao:
   "enrollment_token": "token-forte-de-enrollment",
   "heartbeat_interval_sec": 60,
   "inventory_refresh_interval_sec": 300,
-  "terminal_output_batch_ms": 16,
+  "terminal_output_batch_ms": 50,
   "terminal_working_directory": "/root"
 }
 ```

@@ -25,6 +25,7 @@ const pool = new Pool({
 
 let readyPromise: Promise<void> | null = null;
 let maintenanceStarted = false;
+const CLEANUP_BATCH_SIZE = 1000;
 
 function toJson(value: unknown) {
   return JSON.stringify(value);
@@ -356,6 +357,15 @@ async function seedDemoData() {
   }
 }
 
+async function runBatchedCleanup(client: pg.PoolClient, sql: string, params: unknown[]) {
+  while (true) {
+    const result = await client.query(sql, [...params, CLEANUP_BATCH_SIZE]);
+    if ((result.rowCount ?? 0) < CLEANUP_BATCH_SIZE) {
+      return;
+    }
+  }
+}
+
 async function runMaintenanceCleanup() {
   const now = new Date().toISOString();
   const sessionCutoff = new Date(
@@ -373,36 +383,76 @@ async function runMaintenanceCleanup() {
 
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-    await client.query(
+    await runBatchedCleanup(
+      client,
       `
         DELETE FROM user_sessions
-        WHERE expires_at <= $1
-           OR (last_seen_at <= $2 AND expires_at <= $1)
+        WHERE ctid IN (
+          SELECT ctid
+          FROM user_sessions
+          WHERE expires_at <= $1
+             OR (last_seen_at <= $2 AND expires_at <= $1)
+          LIMIT $3
+        )
       `,
       [now, sessionCutoff],
     );
-    await client.query("DELETE FROM agent_request_nonces WHERE expires_at <= $1", [now]);
-    await client.query(
+    await runBatchedCleanup(
+      client,
+      `
+        DELETE FROM agent_request_nonces
+        WHERE ctid IN (
+          SELECT ctid
+          FROM agent_request_nonces
+          WHERE expires_at <= $1
+          LIMIT $2
+        )
+      `,
+      [now],
+    );
+    await runBatchedCleanup(
+      client,
       `
         DELETE FROM agent_enrollment_tokens
-        WHERE expires_at <= $1
-          AND (consumed_at IS NOT NULL OR created_at <= $2)
+        WHERE ctid IN (
+          SELECT ctid
+          FROM agent_enrollment_tokens
+          WHERE expires_at <= $1
+            AND (consumed_at IS NOT NULL OR created_at <= $2)
+          LIMIT $3
+        )
       `,
       [now, enrollmentCutoff],
     );
-    await client.query(
+    await runBatchedCleanup(
+      client,
       `
         DELETE FROM auth_login_rate_limits
-        WHERE updated_at <= $1
-          AND (locked_until IS NULL OR locked_until <= $2)
+        WHERE ctid IN (
+          SELECT ctid
+          FROM auth_login_rate_limits
+          WHERE updated_at <= $1
+            AND (locked_until IS NULL OR locked_until <= $2)
+          LIMIT $3
+        )
       `,
       [sessionCutoff, now],
     );
-    await client.query("DELETE FROM machine_inventories WHERE collected_at <= $1", [
-      inventoryCutoff,
-    ]);
-    await client.query(
+    await runBatchedCleanup(
+      client,
+      `
+        DELETE FROM machine_inventories
+        WHERE ctid IN (
+          SELECT ctid
+          FROM machine_inventories
+          WHERE collected_at <= $1
+          LIMIT $2
+        )
+      `,
+      [inventoryCutoff],
+    );
+    await runBatchedCleanup(
+      client,
       `
         UPDATE action_executions execution
         SET
@@ -411,33 +461,41 @@ async function runMaintenanceCleanup() {
             WHEN execution.error_output = '' THEN ''
             ELSE LEFT(execution.error_output, 2048)
           END
-        WHERE execution.requested_at <= $1
-          AND execution.status IN ('success', 'failed', 'cancelled')
-          AND EXISTS (
-            SELECT 1
-            FROM audit_logs audit
-            WHERE audit.execution_id = execution.id
-          )
+        WHERE execution.id IN (
+          SELECT candidate.id
+          FROM action_executions candidate
+          WHERE candidate.requested_at <= $1
+            AND candidate.status IN ('success', 'failed', 'cancelled')
+            AND (candidate.output <> '' OR LENGTH(candidate.error_output) > 2048)
+            AND EXISTS (
+              SELECT 1
+              FROM audit_logs audit
+              WHERE audit.execution_id = candidate.id
+            )
+          LIMIT $2
+        )
       `,
       [executionCutoff],
     );
-    await client.query(
+    await runBatchedCleanup(
+      client,
       `
         DELETE FROM action_executions execution
-        WHERE execution.requested_at <= $1
-          AND execution.status IN ('success', 'failed', 'cancelled')
-          AND NOT EXISTS (
-            SELECT 1
-            FROM audit_logs audit
-            WHERE audit.execution_id = execution.id
-          )
+        WHERE execution.id IN (
+          SELECT candidate.id
+          FROM action_executions candidate
+          WHERE candidate.requested_at <= $1
+            AND candidate.status IN ('success', 'failed', 'cancelled')
+            AND NOT EXISTS (
+              SELECT 1
+              FROM audit_logs audit
+              WHERE audit.execution_id = candidate.id
+            )
+          LIMIT $2
+        )
       `,
       [executionCutoff],
     );
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
   } finally {
     client.release();
   }

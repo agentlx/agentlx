@@ -16,8 +16,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .config import resolve_terminal_working_directory
-from .transport import api_request, build_ws_url, sign_agent_request
+from .config import DEFAULT_TERMINAL_OUTPUT_BATCH_MS, resolve_terminal_working_directory
+from .transport import AGENT_HTTP_USER_AGENT, api_request, build_ws_url, sign_agent_request
 from .utils import iso_now
 
 try:
@@ -44,7 +44,7 @@ class RealtimeTunnelClient:
         self.stop_event = threading.Event()
         self.loop: asyncio.AbstractEventLoop | None = None
         self.sessions: dict[str, dict[str, Any]] = {}
-        batch_ms = int(config.get("terminal_output_batch_ms", 16))
+        batch_ms = int(config.get("terminal_output_batch_ms", DEFAULT_TERMINAL_OUTPUT_BATCH_MS))
         self.output_batch_window_sec = max(0.005, batch_ms / 1000)
 
     def _require_websockets(self) -> None:
@@ -95,6 +95,7 @@ class RealtimeTunnelClient:
                 nonce,
                 "",
             ),
+            "User-Agent": AGENT_HTTP_USER_AGENT,
         }
         async with websockets.connect(
             ws_url,
@@ -252,6 +253,11 @@ class RealtimeTunnelClient:
             return
 
         session["tmux_refresh_handle"] = None
+        now = time.monotonic()
+        if not force and now - float(session.get("tmux_checked_at", 0.0) or 0.0) < 1.0:
+            return
+
+        session["tmux_checked_at"] = now
         active = self._detect_tmux_active(session_id)
         if not force and session.get("tmux_active") == active:
             return
