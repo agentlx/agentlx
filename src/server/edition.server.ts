@@ -14,11 +14,27 @@ async function loadProvider() {
 
 export async function hasEnterpriseFeature(feature: EnterpriseFeature) {
   const provider = await loadProvider();
+  if (provider.syncLicenseState) {
+    const state = await provider.syncLicenseState(enterpriseRuntimeContext());
+    return state.status === "valid" && state.features.includes(feature);
+  }
   return Boolean(await provider.hasFeature(feature));
 }
 
 export async function requireEnterpriseFeature(feature: EnterpriseFeature) {
   const provider = await loadProvider();
+  if (provider.syncLicenseState) {
+    const state = await provider.syncLicenseState(enterpriseRuntimeContext());
+    if (state.status !== "valid") {
+      throw new Error(state.message);
+    }
+    if (!state.features.includes(feature)) {
+      throw new Error(
+        `Recurso ${feature} nao esta habilitado nesta licenca Enterprise.`,
+      );
+    }
+    return;
+  }
   await provider.requireFeature(feature);
 }
 
