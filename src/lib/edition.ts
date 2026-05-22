@@ -24,10 +24,12 @@ export const enterpriseFeatureLabels: Record<EnterpriseFeature, string> = {
 };
 
 export type EnterpriseLicenseStatus = "community" | "missing" | "valid" | "expired" | "invalid";
+export type EnterpriseLicenseTier = "starter" | "pro" | "enterprise";
 export type EnterpriseLimitValue = string | number | boolean | null;
 
 export type EnterpriseLicenseState = {
   edition: AgentLxEdition;
+  tier: EnterpriseLicenseTier | null;
   status: EnterpriseLicenseStatus;
   licenseId: string | null;
   customerId: string | null;

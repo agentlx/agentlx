@@ -3,6 +3,7 @@ import type { EnterpriseProvider } from "./types";
 
 export const communityLicenseState = {
   edition: "community",
+  tier: null,
   status: "community",
   licenseId: null,
   customerId: null,

@@ -86,6 +86,7 @@ function LicensePage() {
             <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
               <InfoRow label="Cliente" value={status.customerId ?? "-"} />
               <InfoRow label="Licenca" value={status.licenseId ?? "-"} />
+              <InfoRow label="Plano" value={status.tier ?? "-"} />
               <InfoRow label="Emitida em" value={formatDate(status.issuedAt)} />
               <InfoRow label="Valida ate" value={formatDate(status.expiresAt)} />
               <InfoRow

@@ -13,6 +13,12 @@ No build Community, o alias `@agentlx/enterprise` aponta para `src/enterprise/co
 
 No build Enterprise, o alias `@agentlx/enterprise` aponta para o pacote privado `agentlx-enterprise/src/index.ts`. Esse pacote valida a licenca, expoe os recursos habilitados e registra migracoes adicionais.
 
+Cada compra aprovada no AgentLX Cloud gera uma licenca individual com `tier`
+(`starter`, `pro` ou `enterprise`), `features` e `limits`. A ativacao online
+vincula essa licenca a uma unica instalacao ativa; se o cliente comprar tres
+licencas Enterprise, a Cloud emite tres licencas independentes e cada uma pode
+ser instalada em uma maquina diferente.
+
 ## Recursos controlados
 
 - Auditoria avancada
@@ -59,3 +65,8 @@ AGENTLX-LICENSE-v1.payload.signature
 ```
 
 O payload e assinado com Ed25519. A chave privada deve ficar apenas na ferramenta interna de emissao de licencas; o runtime Enterprise recebe somente a chave publica.
+
+O AgentLX Community nunca recebe credenciais de registry nem controles
+administrativos. Ele consulta somente o provider Enterprise (`hasFeature`,
+`requireFeature` e estado da licenca) para decidir quais funcionalidades
+proprietarias podem funcionar na instalacao atual.
