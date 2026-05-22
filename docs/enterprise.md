@@ -47,8 +47,14 @@ AGENTLX_EDITION=enterprise npm run build:enterprise
 Imagem enterprise a partir do diretorio que contem `agentlx` e `agentlx-enterprise`:
 
 ```bash
+git -C agentlx pull --ff-only
+git -C agentlx-enterprise pull --ff-only
 docker build -f agentlx-enterprise/Dockerfile -t ghcr.io/agentlx/agentlx-enterprise:latest .
 ```
+
+No ambiente publicado, o GitHub e a fonte oficial do estado dos projetos; faca
+commit/push localmente e use `git pull --ff-only` no servidor antes do build da
+imagem.
 
 ## Licenca
 
