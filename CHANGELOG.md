@@ -4,6 +4,14 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.10 - 2026-05-25
+
+### Changed
+
+- Publish the Community image references as `ghcr.io/agentlx/agentlx:v1.0.10`.
+- Move recurring job execution to the Enterprise provider so the public Community image no longer ships the recurring-job implementation.
+- Update installation, update and release documentation to point to the current pinned Community image tag.
+
 ## 1.0.9 - 2026-05-20
 
 ### Changed
