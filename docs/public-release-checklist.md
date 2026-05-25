@@ -1,6 +1,6 @@
 # Public Release Checklist
 
-Use this checklist for the first public `v0.1.0` release.
+Use this checklist before publishing a public AgentLX release.
 
 ## 1. Repository
 
@@ -15,7 +15,7 @@ Use this checklist for the first public `v0.1.0` release.
 Expected image path for the dedicated organization:
 
 ```text
-ghcr.io/agentlx/agentlx:v0.1.0
+ghcr.io/agentlx/agentlx:v1.0.10
 ```
 
 If the repository lives under a different owner, update every image reference in:
@@ -40,13 +40,13 @@ If the repository lives under a different owner, update every image reference in
 The release workflow publishes:
 
 ```text
-ghcr.io/<owner>/agentlx:v0.1.0
-ghcr.io/<owner>/agentlx:0.1.0
-ghcr.io/<owner>/agentlx:0.1
+ghcr.io/<owner>/agentlx:v1.0.10
+ghcr.io/<owner>/agentlx:1.0.10
+ghcr.io/<owner>/agentlx:1.0
 ghcr.io/<owner>/agentlx:latest
 ```
 
-Production documentation should keep using the pinned `v0.1.0` tag.
+Production documentation should keep using the pinned `v1.0.10` tag.
 
 ## 3. Clean VM Install Test
 
@@ -112,8 +112,8 @@ docker compose logs -f app
 After the VM test is green:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v1.0.10
+git push origin v1.0.10
 ```
 
 Create GitHub release notes with:

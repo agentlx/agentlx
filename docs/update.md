@@ -11,7 +11,7 @@ Before updating:
 Update the pinned image tag:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v0.1.1
+image: ghcr.io/agentlx/agentlx:v1.0.10
 ```
 
 Then run:
