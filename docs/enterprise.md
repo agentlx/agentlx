@@ -7,11 +7,22 @@ O AgentLX segue um modelo Open Core:
 
 ## Separacao tecnica
 
-O projeto publico declara somente o contrato de recursos enterprise em `src/lib/edition.ts` e fornece stubs em `src/enterprise`.
+O projeto publico declara o catalogo e os contratos de recursos enterprise em
+`src/lib/edition.ts` e `src/enterprise/types.ts`, alem de stubs em
+`src/enterprise`. Recursos pagos nao devem ter a implementacao operacional
+completa no repositorio publico com apenas um `if` de licenca na frente.
 
 No build Community, o alias `@agentlx/enterprise` aponta para `src/enterprise/community.ts`. Esse provider sempre retorna `edition: "community"` e bloqueia recursos Enterprise.
 
-No build Enterprise, o alias `@agentlx/enterprise` aponta para o pacote privado `agentlx-enterprise/src/index.ts`. Esse pacote valida a licenca, expoe os recursos habilitados e registra migracoes adicionais.
+No build Enterprise, o alias `@agentlx/enterprise` aponta para o pacote privado
+`agentlx-enterprise/src/index.ts`. Esse pacote valida a licenca, expoe os
+recursos habilitados, registra migracoes adicionais e entrega a implementacao
+dos recursos proprietarios.
+
+Exemplo atual: a Community conhece o contrato de `recurring_jobs`, mas nao
+contem o SQL/comportamento que cria ou materializa recorrencias. Criar, listar,
+cancelar e materializar execucoes recorrentes fica no overlay privado
+`agentlx-enterprise`.
 
 Cada compra aprovada no AgentLX Cloud gera uma licenca individual com `tier`
 (`starter`, `pro` ou `enterprise`), `features` e `limits`. A ativacao online
@@ -50,6 +61,14 @@ Imagem enterprise a partir do diretorio que contem `agentlx` e `agentlx-enterpri
 git -C agentlx pull --ff-only
 git -C agentlx-enterprise pull --ff-only
 docker build -f agentlx-enterprise/Dockerfile -t ghcr.io/agentlx/agentlx-enterprise:latest .
+```
+
+Build e push da imagem Enterprise publicada no Harbor:
+
+```bash
+docker build -f agentlx-enterprise/Dockerfile \
+  -t registry.agentlx.com.br/agentlx/agentlx-enterprise:stable .
+docker push registry.agentlx.com.br/agentlx/agentlx-enterprise:stable
 ```
 
 No ambiente publicado, o GitHub e a fonte oficial do estado dos projetos; faca

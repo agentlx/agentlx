@@ -4,8 +4,14 @@ import {
   type EditionStatusView,
   type EnterpriseFeature,
 } from "@/lib/edition";
+import type {
+  RecurringScheduleLookupInput,
+  RecurringScheduleView,
+  RecurringTemplateScheduleInput,
+} from "@/lib/agentlx";
+import type { EnterpriseDbClient, EnterpriseRuntimeContext } from "@/enterprise/types";
 import { appendAuditLog } from "./audit.server";
-import { dbQuery } from "./db.server";
+import { dbQuery, withTransaction } from "./db.server";
 
 async function loadProvider() {
   const enterprise = await import("@agentlx/enterprise");
@@ -29,9 +35,7 @@ export async function requireEnterpriseFeature(feature: EnterpriseFeature) {
       throw new Error(state.message);
     }
     if (!state.features.includes(feature)) {
-      throw new Error(
-        `Recurso ${feature} nao esta habilitado nesta licenca Enterprise.`,
-      );
+      throw new Error(`Recurso ${feature} nao esta habilitado nesta licenca Enterprise.`);
     }
     return;
   }
@@ -65,9 +69,72 @@ export async function installEnterpriseLicense(license: string): Promise<Edition
   return getEditionStatus();
 }
 
-function enterpriseRuntimeContext() {
+export async function listEnterpriseRecurringSchedules(input: {
+  viewerUserId: string;
+  limit?: number;
+}): Promise<RecurringScheduleView[]> {
+  const provider = await loadProvider();
+  if (!provider.recurringJobs || !(await hasEnterpriseFeature("recurring_jobs"))) {
+    return [];
+  }
+
+  return provider.recurringJobs.listSchedules(input, enterpriseRuntimeContext());
+}
+
+export async function createEnterpriseRecurringTemplateSchedule(
+  input: RecurringTemplateScheduleInput & {
+    requestedBy: string;
+    requestedByUserId: string;
+  },
+): Promise<RecurringScheduleView> {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("recurring_jobs");
+  if (!provider.recurringJobs) {
+    throw new Error("Execucoes recorrentes estao disponiveis apenas na edicao Enterprise.");
+  }
+
+  return provider.recurringJobs.createSchedule(input, enterpriseRuntimeContext());
+}
+
+export async function cancelEnterpriseRecurringTemplateSchedule(
+  input: RecurringScheduleLookupInput & {
+    requestedBy: string;
+    requestedByUserId: string;
+  },
+): Promise<{ scheduleId: string; cancelledExecutions: number }> {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("recurring_jobs");
+  if (!provider.recurringJobs) {
+    throw new Error("Execucoes recorrentes estao disponiveis apenas na edicao Enterprise.");
+  }
+
+  return provider.recurringJobs.cancelSchedule(input, enterpriseRuntimeContext());
+}
+
+export async function materializeEnterpriseRecurringExecutions(
+  input: {
+    machineId: string;
+    agentId: string;
+    now: string;
+    limit: number;
+  },
+  client: EnterpriseDbClient,
+) {
+  const provider = await loadProvider();
+  if (!provider.recurringJobs || !(await hasEnterpriseFeature("recurring_jobs"))) {
+    return;
+  }
+
+  await provider.recurringJobs.materializeDueExecutions(input, enterpriseRuntimeContext(client));
+}
+
+function enterpriseRuntimeContext(client?: EnterpriseDbClient): EnterpriseRuntimeContext {
   return {
-    query: dbQuery,
+    query: client?.query ?? dbQuery,
+    withTransaction: <T>(fn: (client: EnterpriseDbClient) => Promise<T>) =>
+      withTransaction((transactionClient) =>
+        fn({ query: (text, params) => transactionClient.query(text, params) }),
+      ),
     audit: async (input: {
       actorId: string;
       action: string;

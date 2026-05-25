@@ -50,7 +50,13 @@ import {
 import { appendAuditLog } from "./audit.server";
 import { dbQuery, withTransaction } from "./db.server";
 import { getEnv } from "./env.server";
-import { hasEnterpriseFeature, requireEnterpriseFeature } from "./edition.server";
+import {
+  cancelEnterpriseRecurringTemplateSchedule,
+  createEnterpriseRecurringTemplateSchedule,
+  hasEnterpriseFeature,
+  listEnterpriseRecurringSchedules,
+  requireEnterpriseFeature,
+} from "./edition.server";
 import {
   decryptPendingToken,
   encryptPendingToken,
@@ -252,26 +258,6 @@ type ExecutionRow = {
   error_output: string;
   requested_by: string;
   available_at: TimestampValue;
-};
-
-type ScheduleRow = {
-  id: string;
-  machine_id: string;
-  machine_hostname: string;
-  machine_exists: boolean;
-  template_id: string | null;
-  template_name: string;
-  service: string;
-  command: string;
-  interval_hours: number;
-  status: "active" | "paused" | "cancelled";
-  requested_by: string;
-  created_at: TimestampValue;
-  starts_at: TimestampValue;
-  next_run_at: TimestampValue;
-  last_run_at: TimestampValue | null;
-  last_execution_id: string | null;
-  failure_count: number;
 };
 
 type AuditRow = {
@@ -493,42 +479,6 @@ function toExecutionLogView(execution: ExecutionRow): ExecutionLogView {
     availableAt,
     isScheduled,
     description: normalizeDisplayText(description),
-  };
-}
-
-function formatIntervalHours(intervalHours: number) {
-  if (intervalHours % 24 === 0) {
-    const days = intervalHours / 24;
-    return days === 1 ? "1 dia" : `${days} dias`;
-  }
-
-  return intervalHours === 1 ? "1 hora" : `${intervalHours} horas`;
-}
-
-function intervalDaysToHours(intervalDays: number) {
-  return intervalDays * 24;
-}
-
-function toRecurringScheduleView(schedule: ScheduleRow): RecurringScheduleView {
-  const lastRunAt = timestampText(schedule.last_run_at);
-  return {
-    id: schedule.id,
-    templateId: schedule.template_id ?? "template-removed",
-    templateName: normalizeDisplayText(schedule.template_name),
-    machineId: schedule.machine_id,
-    machineHostname: schedule.machine_hostname,
-    machineAvailable: schedule.machine_exists,
-    requestedBy: schedule.requested_by,
-    createdAt: formatExecutionDate(timestampText(schedule.created_at)),
-    startsAt: formatExecutionDate(timestampText(schedule.starts_at)),
-    nextRunAt: formatExecutionDate(timestampText(schedule.next_run_at)),
-    lastRunAt: lastRunAt ? formatExecutionDate(lastRunAt) : null,
-    lastExecutionId: schedule.last_execution_id,
-    intervalHours: schedule.interval_hours,
-    status: schedule.status,
-    failureCount: schedule.failure_count,
-    command: normalizeDisplayText(schedule.command),
-    description: `Recorrencia a cada ${formatIntervalHours(schedule.interval_hours)} para ${schedule.machine_hostname}.`,
   };
 }
 
@@ -1505,59 +1455,6 @@ async function loadExecutions(
   return result.rows;
 }
 
-async function loadRecurringSchedules(
-  viewerUserId?: string,
-  scheduleId?: string,
-  limit = DEFAULT_LIST_LIMIT,
-) {
-  const params: unknown[] = [];
-  const conditions = ["schedule.status = 'active'"];
-
-  if (scheduleId) {
-    params.push(scheduleId);
-    conditions.push(`schedule.id = $${params.length}`);
-  }
-
-  if (viewerUserId) {
-    params.push(viewerUserId);
-    conditions.push(machineAccessCondition("schedule.machine_id", `$${params.length}`));
-  }
-
-  params.push(limit);
-  const limitClause = `LIMIT $${params.length}`;
-
-  const result = await dbQuery<ScheduleRow>(
-    `
-      SELECT
-        schedule.id,
-        schedule.machine_id,
-        COALESCE(NULLIF(schedule.machine_hostname, ''), machine.hostname, schedule.machine_id) AS machine_hostname,
-        (machine.id IS NOT NULL) AS machine_exists,
-        schedule.template_id,
-        schedule.template_name,
-        schedule.service,
-        schedule.command,
-        schedule.interval_hours,
-        schedule.status,
-        schedule.requested_by,
-        schedule.created_at,
-        schedule.starts_at,
-        schedule.next_run_at,
-        schedule.last_run_at,
-        schedule.last_execution_id,
-        schedule.failure_count
-      FROM action_schedules schedule
-      LEFT JOIN machines machine ON machine.id = schedule.machine_id
-      WHERE ${conditions.join(" AND ")}
-      ORDER BY schedule.next_run_at ASC
-      ${limitClause}
-    `,
-    params,
-  );
-
-  return result.rows;
-}
-
 async function loadAuditLogs(limit = 80, viewerUserId?: string, cursor?: string | null) {
   const params: unknown[] = [];
   const conditions: string[] = [];
@@ -2176,7 +2073,10 @@ export async function getExecutionLogFeed(
   const auditsLimit = normalizePageLimit(input.auditsLimit);
   const [executions, recurringSchedules, audits] = await Promise.all([
     loadExecutions(undefined, undefined, viewerUserId, limit + 1, input.executionsCursor),
-    loadRecurringSchedules(viewerUserId, undefined, DEFAULT_LIST_LIMIT),
+    listEnterpriseRecurringSchedules({
+      viewerUserId,
+      limit: DEFAULT_LIST_LIMIT,
+    }),
     loadAuditLogs(auditsLimit + 1, viewerUserId, input.auditsCursor),
   ]);
   const executionRows = executions.slice(0, limit);
@@ -2190,7 +2090,7 @@ export async function getExecutionLogFeed(
     scheduled: executionViews
       .filter((execution) => execution.status === "queued" && execution.isScheduled)
       .sort((left, right) => left.availableAt.localeCompare(right.availableAt)),
-    recurringSchedules: recurringSchedules.map(toRecurringScheduleView),
+    recurringSchedules,
     audits: auditRows.map(toAuditLogView),
     executionsPageInfo: pageInfo(
       executions.length > limit && lastExecution
@@ -2755,204 +2655,16 @@ function resolveAvailableAt(scheduledFor?: string) {
   return scheduledDate.toISOString();
 }
 
-function resolveScheduleStartsAt(startsAt: string) {
-  const startDate = new Date(startsAt);
-  if (Number.isNaN(startDate.getTime())) {
-    throw new Error("Data inicial da recorrencia invalida.");
-  }
-  if (startDate.getTime() < Date.now()) {
-    throw new Error("A recorrencia so pode comecar a partir da data e horario atuais.");
-  }
-
-  return startDate.toISOString();
-}
-
 export async function createRecurringTemplateSchedule(
   input: RecurringTemplateScheduleInput & { requestedByUserId: string },
 ): Promise<RecurringScheduleView> {
-  await requireEnterpriseFeature("recurring_jobs");
-
-  const schedule = await withTransaction(async (client) => {
-    const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
-    if (!machine) {
-      throw new Error("Maquina nao encontrada.");
-    }
-
-    const template = await loadTemplateById(client, input.templateId);
-    if (!template) {
-      throw new Error("Template nao encontrado.");
-    }
-
-    const scheduleId = crypto.randomUUID();
-    const now = new Date().toISOString();
-    const startsAt = resolveScheduleStartsAt(input.startsAt);
-    const intervalHours = intervalDaysToHours(input.intervalDays);
-    const protectedCommand = protectExecutionCommand(template.command);
-
-    await client.query(
-      `
-        INSERT INTO action_schedules (
-          id, machine_id, machine_hostname, agent_id, template_id, template_name, service,
-          command, command_encrypted, interval_hours, status, requested_by, created_at,
-          updated_at, starts_at, next_run_at, last_run_at, last_execution_id, failure_count
-        )
-        VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, $12, $12, $13, $13,
-          NULL, NULL, 0
-        )
-      `,
-      [
-        scheduleId,
-        machine.id,
-        machine.hostname,
-        machine.agent_id,
-        template.id,
-        template.name,
-        template.service,
-        protectedCommand.redactedCommand,
-        protectedCommand.encryptedCommand,
-        intervalHours,
-        input.requestedBy,
-        now,
-        startsAt,
-      ],
-    );
-
-    await appendPanelAuditLog(client, {
-      actorType: "panel",
-      actorId: input.requestedBy,
-      action: "schedule.created",
-      machineId: machine.id,
-      machineHostname: machine.hostname,
-      message: `Conta ${input.requestedBy} criou recorrencia do template ${template.name} para ${machine.hostname} a cada ${formatIntervalHours(intervalHours)}.`,
-      createdAt: now,
-      severity: template.risk === "high" ? "warn" : "notice",
-      metadata: {
-        alert: template.risk === "high",
-        scheduleId,
-        templateId: template.id,
-        intervalDays: input.intervalDays,
-        intervalHours,
-        startsAt,
-      },
-    });
-
-    return toRecurringScheduleView({
-      id: scheduleId,
-      machine_id: machine.id,
-      machine_hostname: machine.hostname,
-      machine_exists: true,
-      template_id: template.id,
-      template_name: template.name,
-      service: template.service,
-      command: protectedCommand.redactedCommand,
-      interval_hours: intervalHours,
-      status: "active",
-      requested_by: input.requestedBy,
-      created_at: now,
-      starts_at: startsAt,
-      next_run_at: startsAt,
-      last_run_at: null,
-      last_execution_id: null,
-      failure_count: 0,
-    });
-  });
-
-  if (new Date(schedule.startsAt).getTime() <= Date.now()) {
-    const { notifyAgentQueueAvailable } = await import("./terminal-realtime.server");
-    notifyAgentQueueAvailable(schedule.machineId);
-  }
-
-  return schedule;
+  return createEnterpriseRecurringTemplateSchedule(input);
 }
 
 export async function cancelRecurringTemplateSchedule(
   input: RecurringScheduleLookupInput & { requestedBy: string; requestedByUserId: string },
 ): Promise<{ scheduleId: string; cancelledExecutions: number }> {
-  return withTransaction(async (client) => {
-    const now = new Date().toISOString();
-    const schedules = await client.query<ScheduleRow>(
-      `
-        SELECT
-          schedule.id,
-          schedule.machine_id,
-          COALESCE(NULLIF(schedule.machine_hostname, ''), machine.hostname, schedule.machine_id) AS machine_hostname,
-          (machine.id IS NOT NULL) AS machine_exists,
-          schedule.template_id,
-          schedule.template_name,
-          schedule.service,
-          schedule.command,
-          schedule.interval_hours,
-          schedule.status,
-          schedule.requested_by,
-          schedule.created_at,
-          schedule.starts_at,
-          schedule.next_run_at,
-          schedule.last_run_at,
-          schedule.last_execution_id,
-          schedule.failure_count
-        FROM action_schedules schedule
-        LEFT JOIN machines machine ON machine.id = schedule.machine_id
-        WHERE schedule.id = $1
-          AND schedule.status = 'active'
-          AND ${machineAccessCondition("schedule.machine_id", "$2")}
-        LIMIT 1
-        FOR UPDATE OF schedule
-      `,
-      [input.scheduleId, input.requestedByUserId],
-    );
-
-    const schedule = schedules.rows[0];
-    if (!schedule) {
-      throw new Error("Recorrencia nao encontrada ou sem permissao.");
-    }
-
-    await client.query(
-      `
-        UPDATE action_schedules
-        SET status = 'cancelled', updated_at = $2
-        WHERE id = $1
-      `,
-      [input.scheduleId, now],
-    );
-
-    const cancelled = await client.query<{ id: string }>(
-      `
-        UPDATE action_executions
-        SET
-          status = 'cancelled',
-          finished_at = COALESCE(finished_at, $2),
-          error_output = CASE
-            WHEN COALESCE(error_output, '') = '' THEN 'Execucao cancelada porque a recorrencia foi cancelada.'
-            ELSE error_output || CHR(10) || 'Execucao cancelada porque a recorrencia foi cancelada.'
-          END
-        WHERE schedule_id = $1 AND status = 'queued'
-        RETURNING id
-      `,
-      [input.scheduleId, now],
-    );
-
-    await appendPanelAuditLog(client, {
-      actorType: "panel",
-      actorId: input.requestedBy,
-      action: "schedule.cancelled",
-      machineId: schedule.machine_id,
-      machineHostname: schedule.machine_hostname,
-      message: `Conta ${input.requestedBy} cancelou a recorrencia ${input.scheduleId} do template ${schedule.template_name}.`,
-      createdAt: now,
-      severity: "warn",
-      metadata: {
-        alert: true,
-        scheduleId: input.scheduleId,
-        cancelledExecutions: cancelled.rows.length,
-      },
-    });
-
-    return {
-      scheduleId: input.scheduleId,
-      cancelledExecutions: cancelled.rows.length,
-    };
-  });
+  return cancelEnterpriseRecurringTemplateSchedule(input);
 }
 
 export async function queueTemplateExecution(

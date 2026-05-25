@@ -23,6 +23,7 @@ function enterpriseAlias(mode: string) {
 export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
+      "@": resolve(__dirname, "src"),
       "@agentlx/enterprise": enterpriseAlias(mode),
     },
   },

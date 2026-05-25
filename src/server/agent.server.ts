@@ -13,6 +13,7 @@ import { resolveLinuxDistribution } from "@/lib/agentlx";
 import { deriveMachineStatus } from "@/lib/formatting";
 import { appendAuditLog } from "./audit.server";
 import { dbQuery, withTransaction } from "./db.server";
+import { materializeEnterpriseRecurringExecutions } from "./edition.server";
 import { assertDeploymentReady } from "./env.server";
 import {
   decryptAgentToken,
@@ -115,21 +116,6 @@ type ExecutionRow = {
   output: string;
   error_output: string;
   available_at: string;
-};
-
-type ScheduleRow = {
-  id: string;
-  machine_id: string;
-  machine_hostname: string;
-  agent_id: string;
-  template_id: string | null;
-  template_name: string;
-  service: string;
-  command: string;
-  command_encrypted: string;
-  interval_hours: number;
-  next_run_at: string;
-  requested_by: string;
 };
 
 function normalizeDisplayText(value: string) {
@@ -535,140 +521,6 @@ async function insertStatusHistory(
     `,
     [crypto.randomUUID(), machineId, status, recordedAt, note],
   );
-}
-
-function nextScheduleRunAfter(runAt: string, intervalHours: number, now: string) {
-  const runAtMs = new Date(runAt).getTime();
-  const nowMs = new Date(now).getTime();
-  const intervalMs = intervalHours * 60 * 60 * 1000;
-
-  if (
-    Number.isNaN(runAtMs) ||
-    Number.isNaN(nowMs) ||
-    !Number.isFinite(intervalMs) ||
-    intervalMs < 60 * 60 * 1000
-  ) {
-    throw new Error("Recorrencia invalida para materializacao.");
-  }
-
-  let nextMs = runAtMs + intervalMs;
-  if (nextMs <= nowMs) {
-    const missedIntervals = Math.floor((nowMs - nextMs) / intervalMs) + 1;
-    nextMs += missedIntervals * intervalMs;
-  }
-
-  return new Date(nextMs).toISOString();
-}
-
-async function materializeDueRecurringExecutions(
-  client: {
-    query: <T extends Record<string, unknown>>(
-      text: string,
-      params?: unknown[],
-    ) => Promise<{ rows: T[] }>;
-  },
-  input: {
-    machineId: string;
-    agentId: string;
-    now: string;
-    limit: number;
-  },
-) {
-  const due = await client.query<ScheduleRow>(
-    `
-      SELECT
-        id,
-        machine_id,
-        machine_hostname,
-        agent_id,
-        template_id,
-        template_name,
-        service,
-        command,
-        command_encrypted,
-        interval_hours,
-        next_run_at,
-        requested_by
-      FROM action_schedules
-      WHERE machine_id = $1
-        AND agent_id = $2
-        AND status = 'active'
-        AND next_run_at <= $3
-      ORDER BY next_run_at ASC
-      LIMIT $4
-      FOR UPDATE SKIP LOCKED
-    `,
-    [input.machineId, input.agentId, input.now, input.limit],
-  );
-
-  for (const schedule of due.rows) {
-    const executionId = crypto.randomUUID();
-    const nextRunAt = nextScheduleRunAfter(
-      schedule.next_run_at,
-      schedule.interval_hours,
-      input.now,
-    );
-
-    await client.query(
-      `
-        INSERT INTO action_executions (
-          id, machine_id, machine_hostname, agent_id, template_id, template_name, service,
-          command, command_encrypted, schedule_id, schedule_run_at, execution_kind, status,
-          requested_by, requested_at, available_at, dispatched_at, started_at, finished_at,
-          timeout_sec, duration_ms, exit_code, output, error_output
-        )
-        VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'template', 'queued',
-          $12, $13, $13, NULL, NULL, NULL, 120, 0, NULL, '', ''
-        )
-      `,
-      [
-        executionId,
-        schedule.machine_id,
-        schedule.machine_hostname,
-        schedule.agent_id,
-        schedule.template_id,
-        schedule.template_name,
-        schedule.service,
-        schedule.command,
-        schedule.command_encrypted,
-        schedule.id,
-        schedule.next_run_at,
-        schedule.requested_by,
-        input.now,
-      ],
-    );
-
-    await client.query(
-      `
-        UPDATE action_schedules
-        SET
-          next_run_at = $2,
-          last_run_at = $3,
-          last_execution_id = $4,
-          updated_at = $5
-        WHERE id = $1
-      `,
-      [schedule.id, nextRunAt, schedule.next_run_at, executionId, input.now],
-    );
-
-    await appendAgentAuditLog(client, {
-      actorType: "system",
-      actorId: "scheduler",
-      action: "schedule.materialized",
-      machineId: schedule.machine_id,
-      machineHostname: schedule.machine_hostname,
-      executionId,
-      message: `Recorrencia ${schedule.id} materializada como execucao ${executionId}.`,
-      createdAt: input.now,
-      severity: "notice",
-      metadata: {
-        scheduleId: schedule.id,
-        scheduledRunAt: schedule.next_run_at,
-        nextRunAt,
-      },
-    });
-  }
 }
 
 async function decommissionAgentRecords(
@@ -1188,12 +1040,15 @@ export async function pollPendingExecutions(
 
     await markAgentTokenUsage(client, agent, now);
 
-    await materializeDueRecurringExecutions(client, {
-      machineId: agent.machine_id,
-      agentId: agent.id,
-      now,
-      limit: SCHEDULE_MATERIALIZATION_LIMIT,
-    });
+    await materializeEnterpriseRecurringExecutions(
+      {
+        machineId: agent.machine_id,
+        agentId: agent.id,
+        now,
+        limit: SCHEDULE_MATERIALIZATION_LIMIT,
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
 
     const scheduledTaskLimit = Math.max(1, Number(machine.scheduled_task_limit || 1));
     const inFlightScheduled = await client.query<{ count: string }>(
