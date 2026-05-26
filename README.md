@@ -335,7 +335,7 @@ image: ghcr.io/agentlx/agentlx:v1.0.13
 Em produção, prefira fixar também o digest publicado da release:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v1.0.13@sha256:c71b5581f96d86253fcf947c8b4f6e4f6582685c2cbafd235c6870d595063b9f
+image: ghcr.io/agentlx/agentlx:v1.0.13@sha256:16f4231c360361a1503cc43f99046a81f5efb77f9d2af9477f202b4c22959222
 ```
 
 Para atualizar uma instalação existente:
