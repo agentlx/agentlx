@@ -8,6 +8,7 @@ export const screenPermissionValues = [
   "machines",
   "groups",
   "templates",
+  "policies",
   "logs",
   "users",
 ] as const;
@@ -18,6 +19,7 @@ export const screenPermissionLabels: Record<ScreenPermission, string> = {
   machines: "Maquinas",
   groups: "Grupos",
   templates: "Templates",
+  policies: "Politicas",
   logs: "Logs",
   users: "Usuarios",
 };
@@ -164,6 +166,8 @@ export function screenPath(screen: ScreenPermission) {
       return "/groups";
     case "templates":
       return "/templates";
+    case "policies":
+      return "/policies";
     case "logs":
       return "/logs";
     case "users":
@@ -185,6 +189,7 @@ export function resolveDefaultAuthenticatedPath(
     "machines",
     "groups",
     "templates",
+    "policies",
     "logs",
     "users",
   ];

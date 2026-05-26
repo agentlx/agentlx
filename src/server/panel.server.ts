@@ -53,7 +53,9 @@ import { getEnv } from "./env.server";
 import {
   cancelEnterpriseRecurringTemplateSchedule,
   assertEnterpriseResourceCanCreate,
+  assertEnterpriseMachinePolicyAllowed,
   createEnterpriseRecurringTemplateSchedule,
+  getEnterpriseMachinePolicyMfaRequirement,
   hasEnterpriseFeature,
   listEnterpriseRecurringSchedules,
   requireEnterpriseFeature,
@@ -2056,6 +2058,11 @@ export async function getMachineDetailView(
     logs: logs.map(toExecutionLogView),
     templates: templates.map(toTemplateView),
     groupAccess: await buildMachineGroupAccess(machineId, viewer),
+    machineAccessMfa: await getEnterpriseMachinePolicyMfaRequirement({
+      machineId,
+      userId: viewer.userId,
+      purpose: "machine_access",
+    }),
   };
 }
 
@@ -2720,6 +2727,16 @@ export async function queueTemplateExecution(
       throw new Error("Template nÃ£o encontrado.");
     }
 
+    await assertEnterpriseMachinePolicyAllowed(
+      {
+        machineId: machine.id,
+        userId: input.requestedByUserId,
+        action: "template_execution",
+        templateRisk: template.risk,
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
+
     const executionId = crypto.randomUUID();
     const requestedAt = new Date().toISOString();
     const scheduledFor = resolveAvailableAt(input.scheduledFor);
@@ -2834,6 +2851,24 @@ export async function startRealtimeTemplateExecution(
     if (!template) {
       throw new Error("Template nao encontrado.");
     }
+
+    await assertEnterpriseMachinePolicyAllowed(
+      {
+        machineId: machine.id,
+        userId: input.requestedByUserId,
+        action: "template_execution",
+        templateRisk: template.risk,
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
+    await assertEnterpriseMachinePolicyAllowed(
+      {
+        machineId: machine.id,
+        userId: input.openedByUserId,
+        action: "terminal",
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
 
     const executionId = crypto.randomUUID();
     const requestedAt = new Date().toISOString();
@@ -2980,6 +3015,15 @@ export async function queueRemoteTerminalCommand(
       throw new Error("A mÃ¡quina estÃ¡ offline. Aguarde um heartbeat antes de abrir o terminal.");
     }
 
+    await assertEnterpriseMachinePolicyAllowed(
+      {
+        machineId: machine.id,
+        userId: input.requestedByUserId,
+        action: "terminal",
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
+
     const executionId = crypto.randomUUID();
     const requestedAt = new Date().toISOString();
     const command = input.command.trim();
@@ -3072,6 +3116,16 @@ export async function queueMachineControlAction(
         }.`,
       );
     }
+
+    await assertEnterpriseMachinePolicyAllowed(
+      {
+        machineId: machine.id,
+        userId: input.requestedByUserId,
+        action: "machine_control",
+        machineControlAction: input.action,
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
 
     const executionId = crypto.randomUUID();
     const requestedAt = new Date().toISOString();
@@ -3282,6 +3336,14 @@ export async function queueMachineAgentUninstall(input: {
     }
 
     await assertViewerCanDeleteMachine(client, machine.id, input.requestedByUserId);
+    await assertEnterpriseMachinePolicyAllowed(
+      {
+        machineId: machine.id,
+        userId: input.requestedByUserId,
+        action: "agent_uninstall",
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
 
     const existing = await client.query<{ id: string }>(
       `

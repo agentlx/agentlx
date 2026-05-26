@@ -21,6 +21,8 @@ import {
   updateMachineAgentNameInputSchema,
   updateMachineScheduledTaskLimitInputSchema,
   updateActionTemplateInputSchema,
+  machinePolicyMfaVerificationInputSchema,
+  updateMachinePolicyInputSchema,
 } from "@/lib/agentlx";
 
 export const getDashboardData = createServerFn({ method: "GET" }).handler(async () => {
@@ -120,6 +122,26 @@ export const getMachineGroupsData = createServerFn({ method: "GET" }).handler(as
   const { getMachineGroupsPageView } = await import("@/server/panel.server");
   return getMachineGroupsPageView();
 });
+
+export const getMachinePoliciesData = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireScreenAccess } = await import("@/server/auth.server");
+  await requireScreenAccess("policies");
+  const { listEnterpriseMachinePolicies } = await import("@/server/edition.server");
+  return listEnterpriseMachinePolicies();
+});
+
+export const updateMachinePolicyAction = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => updateMachinePolicyInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("policies");
+    const { updateEnterpriseMachinePolicy } = await import("@/server/edition.server");
+    return updateEnterpriseMachinePolicy({
+      ...data,
+      requestedBy: viewer.email,
+      requestedByUserId: viewer.id,
+    });
+  });
 
 export const getTemplateCatalogData = createServerFn({ method: "GET" }).handler(async () => {
   const { requireScreenAccess } = await import("@/server/auth.server");
@@ -337,5 +359,20 @@ export const openRealtimeTerminalSessionAction = createServerFn({ method: "POST"
     return openRealtimeTerminalSession(data, {
       userId: viewer.id,
       actorId: viewer.email,
+    });
+  });
+
+export const verifyMachinePolicyMfaAction = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => machinePolicyMfaVerificationInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("machines");
+    const { assertViewerCanAccessMachine } = await import("@/server/panel.server");
+    await assertViewerCanAccessMachine(data.machineId, viewer.id);
+    const { verifyEnterpriseMachinePolicyMfa } = await import("@/server/edition.server");
+    return verifyEnterpriseMachinePolicyMfa({
+      ...data,
+      userId: viewer.id,
+      requestedBy: viewer.email,
     });
   });

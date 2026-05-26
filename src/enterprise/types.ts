@@ -2,6 +2,11 @@ import type {
   RecurringScheduleLookupInput,
   RecurringScheduleView,
   RecurringTemplateScheduleInput,
+  MachinePoliciesPageView,
+  MachinePolicyAction,
+  MachinePolicyMfaRequirementView,
+  MachinePolicyMfaVerificationInput,
+  UpdateMachinePolicyInput,
 } from "@/lib/agentlx";
 import type {
   AgentLxEdition,
@@ -103,6 +108,42 @@ export type EnterpriseTerminalSessions = {
   ): Promise<EnterpriseTerminalSessionLimitState>;
 };
 
+export type EnterpriseMachinePolicies = {
+  listPolicies(context: EnterpriseRuntimeContext): Promise<MachinePoliciesPageView>;
+  updatePolicy(
+    input: UpdateMachinePolicyInput & {
+      requestedBy: string;
+      requestedByUserId: string;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<MachinePoliciesPageView>;
+  getMfaRequirement(
+    input: {
+      machineId: string;
+      userId: string;
+      purpose: "machine_access" | "terminal";
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<MachinePolicyMfaRequirementView | null>;
+  recordMfaGrant(
+    input: MachinePolicyMfaVerificationInput & {
+      userId: string;
+      requestedBy: string;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<MachinePolicyMfaRequirementView>;
+  assertAllowed(
+    input: {
+      machineId: string;
+      userId: string;
+      action: MachinePolicyAction;
+      templateRisk?: "low" | "medium" | "high";
+      machineControlAction?: "restart" | "poweroff";
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<void>;
+};
+
 export type EnterpriseProvider = {
   edition: AgentLxEdition;
   hasFeature(feature: EnterpriseFeature): boolean | Promise<boolean>;
@@ -117,6 +158,7 @@ export type EnterpriseProvider = {
   resourceLimits?: EnterpriseResourceLimits;
   recurringJobs?: EnterpriseRecurringJobs;
   terminalSessions?: EnterpriseTerminalSessions;
+  machinePolicies?: EnterpriseMachinePolicies;
 };
 
 export type { AgentLxEdition, EnterpriseFeature, EnterpriseLicenseState };

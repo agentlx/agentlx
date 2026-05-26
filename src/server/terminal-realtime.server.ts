@@ -9,7 +9,10 @@ import { authenticateAgentMessage } from "./agent.server";
 import { appendAuditLog } from "./audit.server";
 import { getViewerFromCookieHeader } from "./auth.server";
 import { dbQuery, withTransaction } from "./db.server";
-import { assertEnterpriseTerminalSessionCanOpen } from "./edition.server";
+import {
+  assertEnterpriseMachinePolicyAllowed,
+  assertEnterpriseTerminalSessionCanOpen,
+} from "./edition.server";
 import { getEnv } from "./env.server";
 
 type AgentSocketContext = {
@@ -687,6 +690,15 @@ export async function openRealtimeTerminalSession(
   const openedAt = new Date(now).toISOString();
 
   await withTransaction(async (client) => {
+    await assertEnterpriseMachinePolicyAllowed(
+      {
+        machineId: machine.id,
+        userId: openedBy.userId,
+        action: "terminal",
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
+
     await assertEnterpriseTerminalSessionCanOpen(
       {
         userId: openedBy.userId,

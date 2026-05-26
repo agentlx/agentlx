@@ -19,13 +19,20 @@ import {
   resetUserMfaAction,
   updateUserAction,
 } from "@/lib/auth-api";
+import { getEditionStatusAction } from "@/lib/edition-api";
 import { requireAdminRoute } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/users")({
   loader: async () => {
     const viewer = await requireAdminRoute();
-    const users = await listUsersAction();
-    return { viewer, users };
+    const [users, editionStatus] = await Promise.all([listUsersAction(), getEditionStatusAction()]);
+    return {
+      viewer,
+      users,
+      canAssignPolicies: editionStatus.featureCatalog.some(
+        (feature) => feature.id === "machine_policy" && feature.enabled,
+      ),
+    };
   },
   head: () => ({
     meta: [
@@ -45,7 +52,9 @@ type UserFormState = {
   disabled: boolean;
 };
 
-const memberPermissionOptions = getAllScreenPermissions().filter((screen) => screen !== "users");
+const baseMemberPermissionOptions = getAllScreenPermissions().filter(
+  (screen) => screen !== "users",
+);
 const PAGE_SIZE = 10;
 const SCREEN_SELECTOR_PAGE_SIZE = 10;
 
@@ -55,7 +64,7 @@ function buildIdSignature(ids: string[]) {
 
 function UsersPage() {
   const router = useRouter();
-  const { users, viewer } = Route.useLoaderData();
+  const { users, viewer, canAssignPolicies } = Route.useLoaderData();
   const createUser = useServerFn(createUserAction);
   const updateUser = useServerFn(updateUserAction);
   const resetUserMfa = useServerFn(resetUserMfaAction);
@@ -69,6 +78,11 @@ function UsersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const memberPermissionOptions = useMemo(
+    () =>
+      baseMemberPermissionOptions.filter((screen) => canAssignPolicies || screen !== "policies"),
+    [canAssignPolicies],
+  );
 
   const sortedUsers = useMemo(
     () =>
@@ -551,6 +565,7 @@ function UsersPage() {
             <PermissionPickerModal
               role={formState.role}
               selected={formState.allowedScreens}
+              availableScreens={memberPermissionOptions}
               onClose={() => setPermissionsOpen(false)}
               onApply={(screens) =>
                 setFormState((current) => ({
@@ -578,11 +593,13 @@ function UsersPage() {
 function PermissionPickerModal({
   role,
   selected,
+  availableScreens,
   onClose,
   onApply,
 }: {
   role: UserRole;
   selected: ScreenPermission[];
+  availableScreens: ScreenPermission[];
   onClose: () => void;
   onApply: (screens: ScreenPermission[]) => void;
 }) {
@@ -592,8 +609,8 @@ function PermissionPickerModal({
   const [page, setPage] = useState(1);
   const [pickerOpen, setPickerOpen] = useState(false);
   const selectedScreens = useMemo(
-    () => memberPermissionOptions.filter((screen) => draftSelected.includes(screen)),
-    [draftSelected],
+    () => availableScreens.filter((screen) => draftSelected.includes(screen)),
+    [availableScreens, draftSelected],
   );
   const filteredScreens = useMemo(() => {
     const term = appliedSearch.trim().toLocaleLowerCase("pt-BR");
@@ -784,6 +801,7 @@ function PermissionPickerModal({
       {pickerOpen && (
         <ScreenPickerModal
           selected={draftSelected}
+          availableScreens={availableScreens}
           onClose={() => setPickerOpen(false)}
           onConfirm={(screens) => {
             setDraftSelected(screens);
@@ -797,10 +815,12 @@ function PermissionPickerModal({
 
 function ScreenPickerModal({
   selected,
+  availableScreens,
   onClose,
   onConfirm,
 }: {
   selected: ScreenPermission[];
+  availableScreens: ScreenPermission[];
   onClose: () => void;
   onConfirm: (screens: ScreenPermission[]) => void;
 }) {
@@ -810,13 +830,13 @@ function ScreenPickerModal({
   const filteredScreens = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
     if (!term) {
-      return memberPermissionOptions;
+      return availableScreens;
     }
 
-    return memberPermissionOptions.filter((screen) =>
+    return availableScreens.filter((screen) =>
       [screen, screenPermissionLabels[screen]].join(" ").toLocaleLowerCase("pt-BR").includes(term),
     );
-  }, [search]);
+  }, [availableScreens, search]);
   const totalPages = Math.max(1, Math.ceil(filteredScreens.length / SCREEN_SELECTOR_PAGE_SIZE));
   const safePage = Math.min(Math.max(page, 1), totalPages);
   const pagedScreens = filteredScreens.slice(

@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Plug2, PlugZap } from "lucide-react";
+import { Plug2, PlugZap, X } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { toast } from "@/components/ui/sonner";
 import { TerminalQuickActions } from "@/components/terminal/TerminalQuickActions";
 import {
   openRealtimeTerminalSessionAction,
   startRealtimeTemplateExecutionAction,
+  verifyMachinePolicyMfaAction,
 } from "@/lib/panel-api";
 import { requestRealtimeTerminalSessionClose } from "@/lib/realtime-terminal-client";
 import { consumePendingTemplateTerminalLaunch } from "@/lib/template-terminal-handoff";
@@ -65,6 +68,7 @@ export function RemoteTerminal({
   const router = useRouter();
   const openSession = useServerFn(openRealtimeTerminalSessionAction);
   const startRealtimeTemplateExecution = useServerFn(startRealtimeTemplateExecutionAction);
+  const verifyPolicyMfa = useServerFn(verifyMachinePolicyMfaAction);
   const terminalContainerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<XtermTerminal | null>(null);
   const fitAddonRef = useRef<XtermFitAddon | null>(null);
@@ -75,6 +79,10 @@ export function RemoteTerminal({
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [terminalMfaOpen, setTerminalMfaOpen] = useState(false);
+  const [terminalMfaSetupRequired, setTerminalMfaSetupRequired] = useState(false);
+  const [terminalMfaCode, setTerminalMfaCode] = useState("");
+  const [terminalMfaVerifying, setTerminalMfaVerifying] = useState(false);
   const [tmuxState, setTmuxState] = useState<"active" | "inactive" | "unknown">("unknown");
   const [terminalReady, setTerminalReady] = useState(false);
 
@@ -119,6 +127,23 @@ export function RemoteTerminal({
     setConnecting(false);
     setTmuxState("unknown");
   }, []);
+
+  const handleTerminalPolicyError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("MACHINE_POLICY_MFA_REQUIRED")) {
+      setTerminalMfaSetupRequired(false);
+      setTerminalMfaOpen(true);
+      setTerminalMfaCode("");
+      return "Informe o MFA para conectar neste terminal.";
+    }
+    if (message.includes("MFA_POLICY_SETUP_REQUIRED")) {
+      setTerminalMfaSetupRequired(true);
+      setTerminalMfaOpen(true);
+      setTerminalMfaCode("");
+      return "Configure MFA no Perfil antes de conectar neste terminal.";
+    }
+    return null;
+  };
 
   const releaseTerminalSession = (options?: { preferBeacon?: boolean; keepalive?: boolean }) => {
     const sessionId = activeSessionIdRef.current;
@@ -388,8 +413,33 @@ export function RemoteTerminal({
       setConnecting(false);
       setConnected(false);
       setErrorMessage(
-        error instanceof Error ? error.message : "Nao foi possivel abrir o terminal remoto.",
+        handleTerminalPolicyError(error) ??
+          (error instanceof Error ? error.message : "Nao foi possivel abrir o terminal remoto."),
       );
+    }
+  };
+
+  const verifyTerminalMfa = async () => {
+    if (terminalMfaCode.length !== 6) {
+      return;
+    }
+
+    setTerminalMfaVerifying(true);
+    try {
+      await verifyPolicyMfa({
+        data: {
+          machineId,
+          purpose: "terminal",
+          code: terminalMfaCode,
+        },
+      });
+      setTerminalMfaOpen(false);
+      setTerminalMfaCode("");
+      toast.success("MFA validado. Conecte o terminal novamente.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nao foi possivel validar o MFA.");
+    } finally {
+      setTerminalMfaVerifying(false);
     }
   };
 
@@ -438,9 +488,10 @@ export function RemoteTerminal({
         setConnecting(false);
         setConnected(false);
         setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Nao foi possivel iniciar o template no terminal da maquina.",
+          handleTerminalPolicyError(error) ??
+            (error instanceof Error
+              ? error.message
+              : "Nao foi possivel iniciar o template no terminal da maquina."),
         );
       }
     })();
@@ -550,7 +601,97 @@ export function RemoteTerminal({
           onFocusTerminal={focusTerminal}
         />
       </div>
+      {terminalMfaOpen && (
+        <TerminalPolicyMfaModal
+          setupRequired={terminalMfaSetupRequired}
+          code={terminalMfaCode}
+          verifying={terminalMfaVerifying}
+          onCodeChange={setTerminalMfaCode}
+          onVerify={() => void verifyTerminalMfa()}
+          onClose={() => setTerminalMfaOpen(false)}
+        />
+      )}
     </Section>
+  );
+}
+
+function TerminalPolicyMfaModal({
+  setupRequired,
+  code,
+  verifying,
+  onCodeChange,
+  onVerify,
+  onClose,
+}: {
+  setupRequired: boolean;
+  code: string;
+  verifying: boolean;
+  onCodeChange: (code: string) => void;
+  onVerify: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[90] grid place-items-center bg-background/80 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg overflow-hidden rounded-lg border border-border bg-surface-raised shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div>
+            <h3 className="text-base font-semibold">MFA exigido</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              A politica desta maquina exige MFA para abrir terminal remoto.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <span className="sr-only">Fechar</span>
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="space-y-4 p-5">
+          {setupRequired ? (
+            <Link
+              to="/profile"
+              className="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Configurar MFA
+            </Link>
+          ) : (
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onVerify();
+              }}
+            >
+              <InputOTP
+                maxLength={6}
+                value={code}
+                onChange={onCodeChange}
+                pattern="^[0-9]+$"
+                containerClassName="grid w-full grid-cols-6 gap-2"
+              >
+                <InputOTPGroup className="contents">
+                  {[0, 1, 2, 3, 4, 5].map((index) => (
+                    <InputOTPSlot
+                      key={index}
+                      index={index}
+                      className="h-12 w-full rounded-md border border-border bg-background text-sm font-semibold first:rounded-md last:rounded-md"
+                    />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={verifying || code.length !== 6}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {verifying ? "Validando..." : "Validar MFA"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

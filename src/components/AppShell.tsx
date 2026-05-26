@@ -7,12 +7,13 @@ import {
   LogOut,
   Menu,
   Monitor,
+  ShieldCheck,
   ScrollText,
   UserCircle2,
   UsersRound,
   X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BrandLockup } from "@/components/Brand";
 import {
   canAccessScreen,
@@ -22,12 +23,21 @@ import {
 } from "@/lib/auth";
 import { logoutAction } from "@/lib/auth-api";
 import { useAuthState } from "@/lib/auth-client";
+import { getEditionStatusAction } from "@/lib/edition-api";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, screen: "dashboard" },
   { to: "/machines", label: "Maquinas", icon: Monitor, exact: false, screen: "machines" },
   { to: "/groups", label: "Grupos", icon: UsersRound, exact: false, screen: "groups" },
   { to: "/templates", label: "Templates", icon: FileText, exact: false, screen: "templates" },
+  {
+    to: "/policies",
+    label: "Politicas",
+    icon: ShieldCheck,
+    exact: false,
+    screen: "policies",
+    feature: "machine_policy",
+  },
   { to: "/logs", label: "Logs", icon: ScrollText, exact: false, screen: "logs" },
   { to: "/users", label: "Usuarios", icon: UserCircle2, exact: false, screen: "users" },
 ] as const;
@@ -43,11 +53,48 @@ export function AppShell({
   const navigate = useNavigate();
   const router = useRouter();
   const logout = useServerFn(logoutAction);
+  const getEditionStatus = useServerFn(getEditionStatusAction);
   const { viewer, loading: viewerLoading, refreshViewer } = useAuthState();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(new Set());
 
-  const visibleNav = nav.filter((item) => canAccessScreen(viewer, item.screen));
+  useEffect(() => {
+    let cancelled = false;
+    if (!viewer) {
+      setEnabledFeatures(new Set());
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void getEditionStatus()
+      .then((status) => {
+        if (cancelled) {
+          return;
+        }
+        setEnabledFeatures(
+          new Set(
+            status.featureCatalog.filter((feature) => feature.enabled).map((feature) => feature.id),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEnabledFeatures(new Set());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getEditionStatus, viewer]);
+
+  const visibleNav = nav.filter(
+    (item) =>
+      canAccessScreen(viewer, item.screen) &&
+      (!("feature" in item) || enabledFeatures.has(item.feature)),
+  );
 
   const handleLogout = async () => {
     setLoggingOut(true);

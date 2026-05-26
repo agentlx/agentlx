@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
 import {
   lazy,
   Suspense,
@@ -30,11 +30,13 @@ import {
   X,
 } from "lucide-react";
 import { AppShell, Crumb, StatusDot, StatusLabel } from "@/components/AppShell";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "@/components/ui/sonner";
 import type {
   ExecutionDetailView,
   MachineGroupAccessView,
   MachineControlAction,
+  MachineDetailView,
   MachineView,
   RealtimeTerminalPresenceView,
 } from "@/lib/agentlx";
@@ -49,6 +51,7 @@ import {
   queueMachineSyncAction,
   updateMachineAgentNameAction,
   updateMachineScheduledTaskLimitAction,
+  verifyMachinePolicyMfaAction,
 } from "@/lib/panel-api";
 import { requireRouteScreen } from "@/lib/route-protection";
 import { hasPendingTemplateTerminalLaunch } from "@/lib/template-terminal-handoff";
@@ -91,6 +94,7 @@ function MachineDetail() {
   const loaderData = Route.useLoaderData();
   const { templates, groupAccess } = loaderData;
   const getExecution = useServerFn(getExecutionDetailData);
+  const verifyPolicyMfa = useServerFn(verifyMachinePolicyMfaAction);
   const queueMachineSync = useServerFn(queueMachineSyncAction);
   const updateMachineAgentName = useServerFn(updateMachineAgentNameAction);
   const updateMachineScheduledTaskLimit = useServerFn(updateMachineScheduledTaskLimitAction);
@@ -103,6 +107,9 @@ function MachineDetail() {
   const [syncing, setSyncing] = useState(false);
   const [syncCooldownUntil, setSyncCooldownUntil] = useState(0);
   const [syncNow, setSyncNow] = useState(() => Date.now());
+  const [machineAccessMfa, setMachineAccessMfa] = useState(loaderData.machineAccessMfa);
+  const [machineAccessMfaCode, setMachineAccessMfaCode] = useState("");
+  const [verifyingMachineAccessMfa, setVerifyingMachineAccessMfa] = useState(false);
   const sortedServices = useMemo(
     () =>
       Array.from(new Set(machine.services))
@@ -115,7 +122,8 @@ function MachineDetail() {
 
   useEffect(() => {
     setMachine(loaderData.machine);
-  }, [loaderData.machine]);
+    setMachineAccessMfa(loaderData.machineAccessMfa);
+  }, [loaderData.machine, loaderData.machineAccessMfa]);
 
   useEffect(() => {
     setSyncExecutionId(null);
@@ -209,6 +217,32 @@ function MachineDetail() {
 
   const syncCooldownSeconds = Math.max(0, Math.ceil((syncCooldownUntil - syncNow) / 1000));
   const refreshDisabled = syncing || syncCooldownSeconds > 0;
+  const machineAccessBlocked = machineAccessMfa?.required && !machineAccessMfa.verified;
+
+  const verifyMachineAccessMfa = async () => {
+    if (!machineAccessMfa || machineAccessMfaCode.length !== 6) {
+      return;
+    }
+
+    setVerifyingMachineAccessMfa(true);
+    try {
+      const result = await verifyPolicyMfa({
+        data: {
+          machineId: machine.id,
+          purpose: "machine_access",
+          code: machineAccessMfaCode,
+        },
+      });
+      setMachineAccessMfa(result);
+      setMachineAccessMfaCode("");
+      toast.success("MFA validado.");
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nao foi possivel validar o MFA.");
+    } finally {
+      setVerifyingMachineAccessMfa(false);
+    }
+  };
 
   const requestMachineSync = useCallback(async () => {
     if (refreshDisabled) {
@@ -402,7 +436,89 @@ function MachineDetail() {
           onClose={() => setGroupManagerOpen(false)}
         />
       )}
+      {machineAccessBlocked && (
+        <MachinePolicyMfaModal
+          requirement={machineAccessMfa}
+          code={machineAccessMfaCode}
+          verifying={verifyingMachineAccessMfa}
+          onCodeChange={setMachineAccessMfaCode}
+          onVerify={() => void verifyMachineAccessMfa()}
+        />
+      )}
     </AppShell>
+  );
+}
+
+function MachinePolicyMfaModal({
+  requirement,
+  code,
+  verifying,
+  onCodeChange,
+  onVerify,
+}: {
+  requirement: NonNullable<MachineDetailView["machineAccessMfa"]>;
+  code: string;
+  verifying: boolean;
+  onCodeChange: (code: string) => void;
+  onVerify: () => void;
+}) {
+  return (
+    <ViewportModal onClose={() => undefined} maxWidthClass="max-w-lg">
+      <div className="border-b border-border bg-background/50 px-5 py-4">
+        <h3 className="text-base font-semibold">MFA exigido</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          A politica desta maquina exige MFA antes de continuar.
+        </p>
+      </div>
+      <div className="space-y-4 p-5">
+        <div className="rounded-md border border-primary/20 bg-primary/10 p-3 text-sm text-primary">
+          {requirement.message}
+        </div>
+        {!requirement.mfaEnabled ? (
+          <Link
+            to="/profile"
+            className="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Configurar MFA
+          </Link>
+        ) : (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onVerify();
+            }}
+          >
+            <InputOTP
+              maxLength={6}
+              value={code}
+              onChange={onCodeChange}
+              pattern="^[0-9]+$"
+              containerClassName="grid w-full grid-cols-6 gap-2"
+            >
+              <InputOTPGroup className="contents">
+                {[0, 1, 2, 3, 4, 5].map((index) => (
+                  <InputOTPSlot
+                    key={index}
+                    index={index}
+                    className="h-12 w-full rounded-md border border-border bg-background text-sm font-semibold first:rounded-md last:rounded-md"
+                  />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={verifying || code.length !== 6}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              >
+                {verifying ? "Validando..." : "Validar MFA"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </ViewportModal>
   );
 }
 

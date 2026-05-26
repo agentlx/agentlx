@@ -964,6 +964,71 @@ export async function requireAdminViewer() {
   return viewer;
 }
 
+export async function isUserMfaEnabled(userId: string) {
+  const user = await findUserById(userId);
+  return Boolean(user && isUserMfaConfigured(user));
+}
+
+export async function verifyUserMfaCode(input: { userId: string; code: string }) {
+  const user = await findUserById(input.userId);
+  if (!user || user.disabled) {
+    throw new Error("Usuario nao encontrado.");
+  }
+
+  if (!isUserMfaConfigured(user)) {
+    throw new Error("MFA nao esta configurado para esta conta.");
+  }
+
+  let resolvedSecret: ReturnType<typeof resolveStoredMfaSecret>;
+  try {
+    resolvedSecret = resolveStoredMfaSecret(user.mfa_secret ?? "");
+  } catch (error) {
+    await appendAuditLog(auditClient(), {
+      actorType: "panel",
+      actorId: user.email,
+      action: "auth.mfa.state.invalid",
+      severity: "critical",
+      message: `MFA inconsistente para ${user.email}.`,
+      metadata: {
+        alert: true,
+        userId: user.id,
+        reason: error && typeof error === "object" && "code" in error ? error.code : "unknown",
+      },
+    });
+    throw new Error("O MFA desta conta esta inconsistente e precisa ser reconfigurado.");
+  }
+
+  const assessment = assessTotpToken(resolvedSecret.secret, input.code);
+  if (!assessment.valid) {
+    await appendAuditLog(auditClient(), {
+      actorType: "panel",
+      actorId: user.email,
+      action: "auth.mfa.failed",
+      severity: "warn",
+      message: `Falha de MFA para ${user.email}.`,
+      metadata: {
+        alert: false,
+        userId: user.id,
+        reason: assessment.reason,
+      },
+    });
+    throw new Error(buildMfaCodeErrorMessage(assessment.reason));
+  }
+
+  if (resolvedSecret.needsMigration) {
+    await dbQuery(
+      `
+        UPDATE users
+        SET mfa_secret = $2,
+            mfa_enabled = TRUE,
+            updated_at = $3
+        WHERE id = $1
+      `,
+      [user.id, encryptMfaSecret(resolvedSecret.secret), new Date().toISOString()],
+    );
+  }
+}
+
 export async function loginUser(email: string, password: string) {
   assertDeploymentReady();
   const normalizedEmail = normalizeEmail(email);

@@ -8,9 +8,14 @@ import {
   type ManagedResourceKind,
 } from "@/lib/edition";
 import type {
+  MachinePoliciesPageView,
+  MachinePolicyAction,
+  MachinePolicyMfaRequirementView,
+  MachinePolicyMfaVerificationInput,
   RecurringScheduleLookupInput,
   RecurringScheduleView,
   RecurringTemplateScheduleInput,
+  UpdateMachinePolicyInput,
 } from "@/lib/agentlx";
 import type { EnterpriseDbClient, EnterpriseRuntimeContext } from "@/enterprise/types";
 import { appendAuditLog } from "./audit.server";
@@ -175,6 +180,82 @@ export async function assertEnterpriseTerminalSessionCanOpen(
   }
 
   return provider.terminalSessions.assertCanOpen(input, enterpriseRuntimeContext(client));
+}
+
+export async function listEnterpriseMachinePolicies(): Promise<MachinePoliciesPageView> {
+  await requireEnterpriseFeature("machine_policy");
+  const provider = await loadProvider();
+  if (!provider.machinePolicies) {
+    throw new Error("Politicas de maquinas estao disponiveis apenas na edicao Enterprise.");
+  }
+
+  return provider.machinePolicies.listPolicies(enterpriseRuntimeContext());
+}
+
+export async function updateEnterpriseMachinePolicy(
+  input: UpdateMachinePolicyInput & {
+    requestedBy: string;
+    requestedByUserId: string;
+  },
+): Promise<MachinePoliciesPageView> {
+  await requireEnterpriseFeature("machine_policy");
+  const provider = await loadProvider();
+  if (!provider.machinePolicies) {
+    throw new Error("Politicas de maquinas estao disponiveis apenas na edicao Enterprise.");
+  }
+
+  return provider.machinePolicies.updatePolicy(input, enterpriseRuntimeContext());
+}
+
+export async function getEnterpriseMachinePolicyMfaRequirement(
+  input: {
+    machineId: string;
+    userId: string;
+    purpose: "machine_access" | "terminal";
+  },
+  client?: EnterpriseDbClient,
+): Promise<MachinePolicyMfaRequirementView | null> {
+  const provider = await loadProvider();
+  if (!provider.machinePolicies || !(await hasEnterpriseFeature("machine_policy"))) {
+    return null;
+  }
+
+  return provider.machinePolicies.getMfaRequirement(input, enterpriseRuntimeContext(client));
+}
+
+export async function verifyEnterpriseMachinePolicyMfa(
+  input: MachinePolicyMfaVerificationInput & {
+    userId: string;
+    requestedBy: string;
+  },
+): Promise<MachinePolicyMfaRequirementView> {
+  await requireEnterpriseFeature("machine_policy");
+  const provider = await loadProvider();
+  if (!provider.machinePolicies) {
+    throw new Error("Politicas de maquinas estao disponiveis apenas na edicao Enterprise.");
+  }
+
+  const { verifyUserMfaCode } = await import("./auth.server");
+  await verifyUserMfaCode({ userId: input.userId, code: input.code });
+  return provider.machinePolicies.recordMfaGrant(input, enterpriseRuntimeContext());
+}
+
+export async function assertEnterpriseMachinePolicyAllowed(
+  input: {
+    machineId: string;
+    userId: string;
+    action: MachinePolicyAction;
+    templateRisk?: "low" | "medium" | "high";
+    machineControlAction?: "restart" | "poweroff";
+  },
+  client?: EnterpriseDbClient,
+): Promise<void> {
+  const provider = await loadProvider();
+  if (!provider.machinePolicies || !(await hasEnterpriseFeature("machine_policy"))) {
+    return;
+  }
+
+  await provider.machinePolicies.assertAllowed(input, enterpriseRuntimeContext(client));
 }
 
 function enterpriseRuntimeContext(client?: EnterpriseDbClient): EnterpriseRuntimeContext {

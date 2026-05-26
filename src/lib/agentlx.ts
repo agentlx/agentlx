@@ -61,6 +61,34 @@ export type MachineControlAction = (typeof machineControlActionValues)[number];
 export const machineGroupRoleValues = ["member", "owner"] as const;
 export type MachineGroupRole = (typeof machineGroupRoleValues)[number];
 
+export const machinePolicyKeyValues = [
+  "require_mfa",
+  "block_terminal",
+  "block_templates",
+  "allow_low_risk_templates_only",
+  "block_power_controls",
+  "block_agent_uninstall",
+] as const;
+export type MachinePolicyKey = (typeof machinePolicyKeyValues)[number];
+
+export const machinePolicyTargetTypeValues = ["machine", "group"] as const;
+export type MachinePolicyTargetType = (typeof machinePolicyTargetTypeValues)[number];
+
+export const machinePolicyMfaModeValues = ["all", "machine_access", "terminal"] as const;
+export type MachinePolicyMfaMode = (typeof machinePolicyMfaModeValues)[number];
+
+export const machinePolicyUserScopeValues = ["all", "selected"] as const;
+export type MachinePolicyUserScope = (typeof machinePolicyUserScopeValues)[number];
+
+export const machinePolicyActionValues = [
+  "machine_access",
+  "terminal",
+  "template_execution",
+  "machine_control",
+  "agent_uninstall",
+] as const;
+export type MachinePolicyAction = (typeof machinePolicyActionValues)[number];
+
 const nullableCursorSchema = z
   .string()
   .trim()
@@ -309,6 +337,22 @@ export const updateMachineScheduledTaskLimitInputSchema = z.object({
   scheduledTaskLimit: z.number().int().min(1).max(MAX_MACHINE_SCHEDULED_TASK_LIMIT),
 });
 
+export const updateMachinePolicyInputSchema = z.object({
+  policyKey: z.enum(machinePolicyKeyValues),
+  enabled: z.boolean(),
+  targetMachineIds: z.array(z.string().min(1).max(120)).max(500).default([]),
+  targetGroupIds: z.array(z.string().min(1).max(120)).max(500).default([]),
+  mfaMode: z.enum(machinePolicyMfaModeValues).default("all"),
+  userScope: z.enum(machinePolicyUserScopeValues).default("all"),
+  selectedUserIds: z.array(z.string().min(1).max(120)).max(500).default([]),
+});
+
+export const machinePolicyMfaVerificationInputSchema = z.object({
+  machineId: z.string().min(1).max(120),
+  purpose: z.enum(["machine_access", "terminal"]),
+  code: z.string().regex(/^\d{6}$/, "Codigo MFA invalido."),
+});
+
 export const agentDecommissionSchema = z.object({
   executionId: z.string().min(1).max(80).optional(),
   mode: z.enum(["panel", "manual"]).default("panel"),
@@ -346,6 +390,10 @@ export type FinalizeMachineEnrollmentInput = z.infer<typeof finalizeMachineEnrol
 export type UpdateMachineAgentNameInput = z.infer<typeof updateMachineAgentNameInputSchema>;
 export type UpdateMachineScheduledTaskLimitInput = z.infer<
   typeof updateMachineScheduledTaskLimitInputSchema
+>;
+export type UpdateMachinePolicyInput = z.infer<typeof updateMachinePolicyInputSchema>;
+export type MachinePolicyMfaVerificationInput = z.infer<
+  typeof machinePolicyMfaVerificationInputSchema
 >;
 export type AgentDecommissionInput = z.infer<typeof agentDecommissionSchema>;
 
@@ -419,6 +467,46 @@ export type MachineGroupAccessView = {
   assignedGroups: MachineGroupOptionView[];
   availableGroups: MachineGroupOptionView[];
   canManage: boolean;
+};
+
+export type MachinePolicyTargetView = {
+  type: MachinePolicyTargetType;
+  id: string;
+  name: string;
+};
+
+export type MachinePolicyUserScopeView = {
+  scope: MachinePolicyUserScope;
+  users: GroupSelectableUserView[];
+};
+
+export type MachinePolicyView = {
+  key: MachinePolicyKey;
+  name: string;
+  description: string;
+  enabled: boolean;
+  mfaMode: MachinePolicyMfaMode;
+  userScope: MachinePolicyUserScopeView;
+  targets: MachinePolicyTargetView[];
+  updatedAt: string | null;
+  updatedBy: string | null;
+};
+
+export type MachinePoliciesPageView = {
+  policies: MachinePolicyView[];
+  machines: MachineView[];
+  groups: MachineGroupOptionView[];
+  users: GroupSelectableUserView[];
+};
+
+export type MachinePolicyMfaRequirementView = {
+  required: boolean;
+  purpose: "machine_access" | "terminal";
+  machineId: string;
+  machineHostname: string;
+  mfaEnabled: boolean;
+  verified: boolean;
+  message: string;
 };
 
 export type MachinesPageView = {
@@ -515,6 +603,7 @@ export type MachineDetailView = {
   logs: ExecutionLogView[];
   templates: ActionTemplateView[];
   groupAccess: MachineGroupAccessView;
+  machineAccessMfa: MachinePolicyMfaRequirementView | null;
 };
 
 export type ExecutionDetailView = ExecutionLogView;
