@@ -4,6 +4,12 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.14 - 2026-05-26
+
+### Fixed
+
+- Fix panel user creation by aligning the `users` insert with the profile photo columns in the database schema.
+
 ## 1.0.13 - 2026-05-26
 
 ### Added

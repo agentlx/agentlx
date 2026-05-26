@@ -11,13 +11,13 @@ Before updating:
 Update the pinned image tag:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v1.0.13
+image: ghcr.io/agentlx/agentlx:v1.0.14
 ```
 
 For production, prefer the release digest:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v1.0.13@sha256:16f4231c360361a1503cc43f99046a81f5efb77f9d2af9477f202b4c22959222
+image: ghcr.io/agentlx/agentlx:v1.0.14@sha256:<published-digest>
 ```
 
 Then run:

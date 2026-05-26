@@ -1091,6 +1091,8 @@ export async function createUser(input: CreateUserInput) {
         mfa_secret,
         mfa_enabled,
         profile_photo_mime,
+        profile_photo_data,
+        profile_photo_bytes,
         profile_photo_width,
         profile_photo_height,
         profile_photo_updated_at,
