@@ -23,10 +23,71 @@ const pool = new Pool({
 });
 
 function splitSqlStatements(sql) {
-  return sql
-    .split(/;\s*(?:\r?\n|$)/)
-    .map((statement) => statement.trim())
-    .filter(Boolean);
+  const statements = [];
+  let current = "";
+  let quote = null;
+  let dollarQuote = null;
+
+  for (let index = 0; index < sql.length; index += 1) {
+    const char = sql[index];
+    const rest = sql.slice(index);
+
+    if (dollarQuote) {
+      if (rest.startsWith(dollarQuote)) {
+        current += dollarQuote;
+        index += dollarQuote.length - 1;
+        dollarQuote = null;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+
+    if (quote) {
+      current += char;
+      if (char === quote) {
+        if (sql[index + 1] === quote) {
+          current += sql[index + 1];
+          index += 1;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    const dollarMatch = rest.match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
+    if (dollarMatch) {
+      dollarQuote = dollarMatch[0];
+      current += dollarQuote;
+      index += dollarQuote.length - 1;
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+      continue;
+    }
+
+    if (char === ";") {
+      const statement = current.trim();
+      if (statement) {
+        statements.push(statement);
+      }
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  const statement = current.trim();
+  if (statement) {
+    statements.push(statement);
+  }
+
+  return statements;
 }
 
 async function runSqlFile(client, filePath) {
