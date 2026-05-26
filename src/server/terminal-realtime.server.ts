@@ -8,7 +8,8 @@ import type {
 import { authenticateAgentMessage } from "./agent.server";
 import { appendAuditLog } from "./audit.server";
 import { getViewerFromCookieHeader } from "./auth.server";
-import { dbQuery } from "./db.server";
+import { dbQuery, withTransaction } from "./db.server";
+import { assertEnterpriseTerminalSessionCanOpen } from "./edition.server";
 import { getEnv } from "./env.server";
 
 type AgentSocketContext = {
@@ -30,6 +31,7 @@ type TerminalSession = {
   browserAttached: boolean;
   inputAudited: boolean;
   lastBrowserHeartbeatAt: number;
+  lastLeaseHeartbeatAt: number;
   browserHeartbeatTimer: NodeJS.Timeout | null;
   bootstrapExecution: {
     executionId: string;
@@ -53,6 +55,7 @@ type UserIdentityRow = {
 const PRECONNECT_TTL_MS = 30_000;
 const BROWSER_HEARTBEAT_INTERVAL_MS = 25_000;
 const BROWSER_HEARTBEAT_TIMEOUT_MS = 75_000;
+const TERMINAL_LEASE_HEARTBEAT_MIN_INTERVAL_MS = 10_000;
 const sessions = new Map<string, TerminalSession>();
 const agentSockets = new Map<string, AgentSocketContext>();
 const presenceSubscribers = new Map<
@@ -108,6 +111,45 @@ function sendJson(socket: WebSocket, payload: unknown) {
   return true;
 }
 
+function terminalLeaseExpiresAt(ttlMs = BROWSER_HEARTBEAT_TIMEOUT_MS) {
+  return new Date(Date.now() + ttlMs).toISOString();
+}
+
+async function renewTerminalSessionLease(sessionId: string, ttlMs = BROWSER_HEARTBEAT_TIMEOUT_MS) {
+  await dbQuery(
+    `
+      UPDATE realtime_terminal_session_leases
+      SET heartbeat_at = now(),
+          expires_at = $2
+      WHERE id = $1
+        AND closed_at IS NULL
+    `,
+    [sessionId, terminalLeaseExpiresAt(ttlMs)],
+  );
+}
+
+async function closeTerminalSessionLease(sessionId: string) {
+  await dbQuery(
+    `
+      UPDATE realtime_terminal_session_leases
+      SET closed_at = COALESCE(closed_at, now()),
+          expires_at = LEAST(expires_at, now()),
+          heartbeat_at = now()
+      WHERE id = $1
+    `,
+    [sessionId],
+  );
+}
+
+function releaseTerminalSessionLease(sessionId: string) {
+  closeTerminalSessionLease(sessionId).catch((error) => {
+    console.error("[terminal][lease] falha ao liberar sessao", {
+      sessionId,
+      error,
+    });
+  });
+}
+
 function scheduleSessionExpiry(sessionId: string) {
   setTimeout(() => {
     const session = sessions.get(sessionId);
@@ -132,6 +174,7 @@ function scheduleSessionExpiry(sessionId: string) {
     }
 
     sessions.delete(sessionId);
+    releaseTerminalSessionLease(sessionId);
   }, PRECONNECT_TTL_MS + 1_000);
 }
 
@@ -143,7 +186,19 @@ function clearBrowserHeartbeatTimer(session: TerminalSession) {
 }
 
 function noteBrowserPresence(session: TerminalSession) {
-  session.lastBrowserHeartbeatAt = Date.now();
+  const now = Date.now();
+  session.lastBrowserHeartbeatAt = now;
+  if (now - session.lastLeaseHeartbeatAt < TERMINAL_LEASE_HEARTBEAT_MIN_INTERVAL_MS) {
+    return;
+  }
+
+  session.lastLeaseHeartbeatAt = now;
+  renewTerminalSessionLease(session.sessionId).catch((error) => {
+    console.error("[terminal][lease] falha ao renovar sessao", {
+      sessionId: session.sessionId,
+      error,
+    });
+  });
 }
 
 function scheduleBrowserHeartbeatTimeout(sessionId: string) {
@@ -209,6 +264,7 @@ function closeTerminalSession(
   }
 
   sessions.delete(sessionId);
+  releaseTerminalSessionLease(sessionId);
   void broadcastRealtimeTerminalPresence(session.machineId);
 }
 
@@ -296,6 +352,7 @@ function handleAgentMessage(machineId: string, raw: string) {
         browserSocket.close();
       }
       sessions.delete(sessionId);
+      releaseTerminalSessionLease(sessionId);
       void broadcastRealtimeTerminalPresence(session.machineId);
       return;
     case "terminal.error":
@@ -485,6 +542,7 @@ async function handleBrowserUpgrade(
     session.browserSocket = ws;
     session.browserAttached = true;
     noteBrowserPresence(session);
+    void renewTerminalSessionLease(session.sessionId);
 
     browserWss.emit("connection", ws, request);
     sendJson(ws, {
@@ -624,6 +682,43 @@ export async function openRealtimeTerminalSession(
   }
 
   const sessionId = crypto.randomUUID();
+  const now = Date.now();
+  const expiresAt = now + PRECONNECT_TTL_MS;
+  const openedAt = new Date(now).toISOString();
+
+  await withTransaction(async (client) => {
+    await assertEnterpriseTerminalSessionCanOpen(
+      {
+        userId: openedBy.userId,
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
+
+    await client.query(
+      `
+        INSERT INTO realtime_terminal_session_leases (
+          id,
+          user_id,
+          actor_id,
+          machine_id,
+          opened_at,
+          heartbeat_at,
+          expires_at,
+          closed_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $5, $6, NULL)
+      `,
+      [
+        sessionId,
+        openedBy.userId,
+        openedBy.actorId,
+        machine.id,
+        openedAt,
+        new Date(expiresAt).toISOString(),
+      ],
+    );
+  });
+
   sessions.set(sessionId, {
     sessionId,
     machineId: machine.id,
@@ -632,12 +727,13 @@ export async function openRealtimeTerminalSession(
     cols: input.cols,
     rows: input.rows,
     browserSocket: null,
-    openedAt: Date.now(),
-    expiresAt: Date.now() + PRECONNECT_TTL_MS,
+    openedAt: now,
+    expiresAt,
     connectedToAgent: false,
     browserAttached: false,
     inputAudited: false,
-    lastBrowserHeartbeatAt: Date.now(),
+    lastBrowserHeartbeatAt: now,
+    lastLeaseHeartbeatAt: now,
     browserHeartbeatTimer: null,
     bootstrapExecution: bootstrapExecution ?? null,
   });

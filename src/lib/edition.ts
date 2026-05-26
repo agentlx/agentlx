@@ -52,6 +52,15 @@ export type EnterpriseResourceLimitState = {
   message: string;
 };
 
+export type EnterpriseTerminalSessionLimitState = {
+  userId: string;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  allowed: boolean;
+  message: string;
+};
+
 export type EditionStatusView = EnterpriseLicenseState & {
   featureCatalog: Array<{
     id: EnterpriseFeature;

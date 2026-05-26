@@ -4,6 +4,7 @@ import {
   type EditionStatusView,
   type EnterpriseFeature,
   type EnterpriseResourceLimitState,
+  type EnterpriseTerminalSessionLimitState,
   type ManagedResourceKind,
 } from "@/lib/edition";
 import type {
@@ -159,6 +160,21 @@ export async function assertEnterpriseResourceCanCreate(
   }
 
   return provider.resourceLimits.assertCanCreate(input, enterpriseRuntimeContext(client));
+}
+
+export async function assertEnterpriseTerminalSessionCanOpen(
+  input: {
+    userId: string;
+    increment?: number;
+  },
+  client?: EnterpriseDbClient,
+): Promise<EnterpriseTerminalSessionLimitState> {
+  const provider = await loadProvider();
+  if (!provider.terminalSessions) {
+    throw new Error("Limites de terminal nao estao configurados nesta edicao.");
+  }
+
+  return provider.terminalSessions.assertCanOpen(input, enterpriseRuntimeContext(client));
 }
 
 function enterpriseRuntimeContext(client?: EnterpriseDbClient): EnterpriseRuntimeContext {

@@ -8,6 +8,7 @@ import type {
   EnterpriseFeature,
   EnterpriseLicenseState,
   EnterpriseResourceLimitState,
+  EnterpriseTerminalSessionLimitState,
   ManagedResourceKind,
 } from "@/lib/edition";
 
@@ -86,6 +87,22 @@ export type EnterpriseResourceLimits = {
   ): Promise<EnterpriseResourceLimitState>;
 };
 
+export type EnterpriseTerminalSessions = {
+  getLimit(
+    input: {
+      userId: string;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<EnterpriseTerminalSessionLimitState>;
+  assertCanOpen(
+    input: {
+      userId: string;
+      increment?: number;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<EnterpriseTerminalSessionLimitState>;
+};
+
 export type EnterpriseProvider = {
   edition: AgentLxEdition;
   hasFeature(feature: EnterpriseFeature): boolean | Promise<boolean>;
@@ -99,6 +116,7 @@ export type EnterpriseProvider = {
   getEnterpriseMigrations?(): EnterpriseMigration[];
   resourceLimits?: EnterpriseResourceLimits;
   recurringJobs?: EnterpriseRecurringJobs;
+  terminalSessions?: EnterpriseTerminalSessions;
 };
 
 export type { AgentLxEdition, EnterpriseFeature, EnterpriseLicenseState };

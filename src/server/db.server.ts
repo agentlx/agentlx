@@ -703,6 +703,80 @@ export async function getResourceLimitEnforcementState() {
   };
 }
 
+export async function getTerminalSessionLimitEnforcementState() {
+  await ensureDatabaseReady();
+  const tableResult = await pool.query<{ table_exists: boolean }>(
+    `
+      SELECT
+        to_regclass('public.terminal_session_limit_enforcement') IS NOT NULL
+        AND to_regclass('public.realtime_terminal_session_leases') IS NOT NULL
+          AS table_exists
+    `,
+  );
+  if (!tableResult.rows[0]?.table_exists) {
+    return {
+      ok: false,
+      status: "missing",
+      tableExists: false,
+      functionCount: 0,
+      triggerCount: 0,
+      configuredCount: 0,
+      communityDefaultCount: 0,
+    };
+  }
+
+  const result = await pool.query<{
+    function_count: string;
+    trigger_count: string;
+    configured_count: string;
+    community_default_count: string;
+  }>(`
+    SELECT
+      (
+        SELECT COUNT(*)::text
+        FROM pg_proc
+        WHERE proname IN (
+          'enforce_agentlx_terminal_session_limit',
+          'enforce_realtime_terminal_session_insert_limit'
+        )
+      ) AS function_count,
+      (
+        SELECT COUNT(*)::text
+        FROM pg_trigger
+        WHERE tgname IN ('trg_enforce_realtime_terminal_session_insert_limit')
+          AND NOT tgisinternal
+      ) AS trigger_count,
+      (
+        SELECT COUNT(*)::text
+        FROM terminal_session_limit_enforcement
+        WHERE scope = 'per_user'
+      ) AS configured_count,
+      (
+        SELECT COUNT(*)::text
+        FROM terminal_session_limit_enforcement
+        WHERE scope = 'per_user'
+          AND limit_value = 1
+      ) AS community_default_count
+  `);
+
+  const row = result.rows[0];
+  const functionCount = Number(row?.function_count ?? 0);
+  const triggerCount = Number(row?.trigger_count ?? 0);
+  const configuredCount = Number(row?.configured_count ?? 0);
+  const communityDefaultCount = Number(row?.community_default_count ?? 0);
+  const ok = functionCount === 2 && triggerCount === 1 && configuredCount === 1;
+
+  return {
+    ok,
+    status: ok ? "ok" : "degraded",
+    tableExists: true,
+    functionCount,
+    triggerCount,
+    configuredCount,
+    communityDefaultCount,
+  };
+}
+
 export async function withTransaction<T>(fn: (client: pg.PoolClient) => Promise<T>) {
   await ensureDatabaseReady();
   const client = await pool.connect();

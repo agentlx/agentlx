@@ -1,6 +1,7 @@
 import { enterpriseFeatures, type EnterpriseFeature } from "@/lib/edition";
 import type { EnterpriseProvider } from "./types";
 import { communityResourceLimits } from "./community-resource-limits";
+import { communityTerminalSessions } from "./community-terminal-sessions";
 
 export const communityLicenseState = {
   edition: "community",
@@ -26,6 +27,7 @@ export function getEnterpriseProvider(): EnterpriseProvider {
     getLicenseState: () => communityLicenseState,
     getEnterpriseMigrations: () => [],
     resourceLimits: communityResourceLimits,
+    terminalSessions: communityTerminalSessions,
   };
 }
 

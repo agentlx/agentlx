@@ -2819,8 +2819,6 @@ export async function startRealtimeTemplateExecution(
     requestedByUserId: string;
   },
 ): Promise<RealtimeTemplateExecutionView> {
-  await requireEnterpriseFeature("terminal_collaboration");
-
   const created = await withTransaction(async (client) => {
     const machine = await loadMachineForQueue(client, input.machineId, input.requestedByUserId);
     if (!machine) {
