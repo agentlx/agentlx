@@ -4,6 +4,18 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.13 - 2026-05-26
+
+### Added
+
+- Enforce one simultaneous realtime terminal per Community user with an application and database-backed lease layer.
+- Add Enterprise terminal collaboration limits resolved from the signed license payload.
+- Expose terminal session limit enforcement integrity checks in the health response.
+
+### Changed
+
+- Allow Community users to open realtime terminals within the Community per-user limit instead of gating the flow entirely behind Enterprise.
+
 ## 1.0.12 - 2026-05-26
 
 ### Added
