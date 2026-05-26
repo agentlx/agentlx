@@ -4,6 +4,18 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.16 - 2026-05-26
+
+### Added
+
+- Add Enterprise machine policy contracts and delegated enforcement hooks for machine access, realtime terminal, template execution, power controls and agent uninstall.
+- Add the Policies screen shell for licensed Enterprise installs with machine, group and user selectors.
+
+### Changed
+
+- Keep the machine policy implementation in the private Enterprise overlay while the public project only exposes safe contracts and delegation points.
+- Expose Policies permissions only when the `machine_policy` Enterprise feature is active.
+
 ## 1.0.15 - 2026-05-26
 
 ### Fixed

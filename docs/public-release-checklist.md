@@ -15,7 +15,7 @@ Use this checklist before publishing a public AgentLX release.
 Expected image path for the dedicated organization:
 
 ```text
-ghcr.io/agentlx/agentlx:v1.0.15
+ghcr.io/agentlx/agentlx:v1.0.16
 ```
 
 If the repository lives under a different owner, update every image reference in:
@@ -40,13 +40,13 @@ If the repository lives under a different owner, update every image reference in
 The release workflow publishes:
 
 ```text
-ghcr.io/<owner>/agentlx:v1.0.15
+ghcr.io/<owner>/agentlx:v1.0.16
 ghcr.io/<owner>/agentlx:1.0.15
 ghcr.io/<owner>/agentlx:1.0
 ghcr.io/<owner>/agentlx:latest
 ```
 
-Production documentation should keep using the pinned `v1.0.15` tag.
+Production documentation should keep using the pinned `v1.0.16` tag.
 
 ## 3. Clean VM Install Test
 
@@ -112,8 +112,8 @@ docker compose logs -f app
 After the VM test is green:
 
 ```bash
-git tag v1.0.15
-git push origin v1.0.15
+git tag v1.0.16
+git push origin v1.0.16
 ```
 
 Create GitHub release notes with:
