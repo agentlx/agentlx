@@ -11,6 +11,8 @@ export const enterpriseFeatures = [
 
 export type EnterpriseFeature = (typeof enterpriseFeatures)[number];
 export type AgentLxEdition = "community" | "enterprise";
+export const managedResourceKinds = ["machines", "templates", "groups"] as const;
+export type ManagedResourceKind = (typeof managedResourceKinds)[number];
 
 export const enterpriseFeatureLabels: Record<EnterpriseFeature, string> = {
   advanced_audit: "Auditoria avancada",
@@ -39,6 +41,15 @@ export type EnterpriseLicenseState = {
   limits: Record<string, EnterpriseLimitValue>;
   message: string;
   canInstallLicense: boolean;
+};
+
+export type EnterpriseResourceLimitState = {
+  resource: ManagedResourceKind;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  allowed: boolean;
+  message: string;
 };
 
 export type EditionStatusView = EnterpriseLicenseState & {

@@ -13,7 +13,10 @@ import { resolveLinuxDistribution } from "@/lib/agentlx";
 import { deriveMachineStatus } from "@/lib/formatting";
 import { appendAuditLog } from "./audit.server";
 import { dbQuery, withTransaction } from "./db.server";
-import { materializeEnterpriseRecurringExecutions } from "./edition.server";
+import {
+  assertEnterpriseResourceCanCreate,
+  materializeEnterpriseRecurringExecutions,
+} from "./edition.server";
 import { assertDeploymentReady } from "./env.server";
 import {
   decryptAgentToken,
@@ -787,6 +790,11 @@ export async function registerAgent(
         pollIntervalSec: input.pollIntervalSec,
       };
     }
+
+    await assertEnterpriseResourceCanCreate(
+      { resource: "machines" },
+      { query: (text, params) => client.query(text, params) },
+    );
 
     await client.query(
       `

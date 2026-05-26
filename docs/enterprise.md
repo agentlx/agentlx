@@ -24,6 +24,13 @@ contem o SQL/comportamento que cria ou materializa recorrencias. Criar, listar,
 cancelar e materializar execucoes recorrentes fica no overlay privado
 `agentlx-enterprise`.
 
+A Community tambem conhece apenas o contrato de limites para recursos
+gerenciados. O provider Community aplica o teto open source de 10 maquinas, 10
+templates e 10 grupos; o provider Enterprise calcula esses limites a partir da
+licenca assinada. A base publica chama esse contrato antes de criar enrollment,
+registrar nova maquina, criar template ou criar grupo, sem embutir a politica
+comercial de escala no codigo publico.
+
 Cada compra aprovada no AgentLX Cloud gera uma licenca individual com `tier`
 (`starter`, `pro` ou `enterprise`), `features` e `limits`. A ativacao online
 vincula essa licenca a uma unica instalacao ativa; se o cliente comprar tres
@@ -93,5 +100,5 @@ O payload e assinado com Ed25519. A chave privada deve ficar apenas na ferrament
 
 O AgentLX Community nunca recebe credenciais de registry nem controles
 administrativos. Ele consulta somente o provider Enterprise (`hasFeature`,
-`requireFeature` e estado da licenca) para decidir quais funcionalidades
-proprietarias podem funcionar na instalacao atual.
+`requireFeature`, estado da licenca e limites de recursos) para decidir quais
+funcionalidades proprietarias podem funcionar na instalacao atual.

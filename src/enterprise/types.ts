@@ -3,7 +3,13 @@ import type {
   RecurringScheduleView,
   RecurringTemplateScheduleInput,
 } from "@/lib/agentlx";
-import type { AgentLxEdition, EnterpriseFeature, EnterpriseLicenseState } from "@/lib/edition";
+import type {
+  AgentLxEdition,
+  EnterpriseFeature,
+  EnterpriseLicenseState,
+  EnterpriseResourceLimitState,
+  ManagedResourceKind,
+} from "@/lib/edition";
 
 export type EnterpriseMigration = {
   id: string;
@@ -62,6 +68,24 @@ export type EnterpriseRecurringJobs = {
   ): Promise<void>;
 };
 
+export type EnterpriseResourceLimits = {
+  getLimit(
+    input: {
+      resource: ManagedResourceKind;
+      includePendingEnrollments?: boolean;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<EnterpriseResourceLimitState>;
+  assertCanCreate(
+    input: {
+      resource: ManagedResourceKind;
+      increment?: number;
+      includePendingEnrollments?: boolean;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<EnterpriseResourceLimitState>;
+};
+
 export type EnterpriseProvider = {
   edition: AgentLxEdition;
   hasFeature(feature: EnterpriseFeature): boolean | Promise<boolean>;
@@ -73,6 +97,7 @@ export type EnterpriseProvider = {
     context: EnterpriseRuntimeContext,
   ): Promise<EnterpriseLicenseState>;
   getEnterpriseMigrations?(): EnterpriseMigration[];
+  resourceLimits?: EnterpriseResourceLimits;
   recurringJobs?: EnterpriseRecurringJobs;
 };
 

@@ -8,20 +8,25 @@ O objetivo do AgentLX é oferecer uma alternativa aberta e auto-hospedável para
 
 O modelo de edição agora é Open Core: a base pública continua como **AgentLX Community** sob Apache-2.0, enquanto os módulos proprietários ficam na camada privada **AgentLX Enterprise**. Veja [docs/enterprise.md](docs/enterprise.md).
 
+Na edição Community, a instalação fica limitada a 10 máquinas registradas, 10
+templates e 10 grupos de máquinas. Limites maiores são responsabilidade do
+overlay privado AgentLX Enterprise e vêm no payload de licença emitido pelo
+AgentLX Cloud.
+
 ---
 
 ## Visão geral
 
 Com o AgentLX, você pode:
 
-* visualizar servidores Linux conectados ao painel;
-* acompanhar status, heartbeat e telemetria básica;
-* acessar terminal remoto em tempo real pelo navegador;
-* executar comandos e templates operacionais;
-* organizar máquinas por grupos;
-* controlar permissões por usuário e por tela;
-* auditar ações executadas na plataforma;
-* instalar e atualizar agents Linux de forma automatizada.
+- visualizar servidores Linux conectados ao painel;
+- acompanhar status, heartbeat e telemetria básica;
+- acessar terminal remoto em tempo real pelo navegador;
+- executar comandos e templates operacionais;
+- organizar máquinas por grupos;
+- controlar permissões por usuário e por tela;
+- auditar ações executadas na plataforma;
+- instalar e atualizar agents Linux de forma automatizada.
 
 O projeto foi desenhado para ambientes onde a transparência e o controle são importantes. Por ser open source, o código do painel, do backend, do agent e do protocolo pode ser auditado, revisado e adaptado conforme a necessidade da infraestrutura.
 
@@ -31,42 +36,42 @@ O projeto foi desenhado para ambientes onde a transparência e o controle são i
 
 ### Painel web
 
-* Dashboard com resumo da frota.
-* Lista de máquinas com busca e filtro por status.
-* Geração de token e comando de instalação do agent.
-* Página de detalhe da máquina com CPU, RAM, disco e inventário.
-* Terminal remoto em tempo real.
-* Quick actions para tmux.
-* Execução de templates pelo terminal.
-* Reinício e desligamento remotos.
-* Gerenciamento de grupos vinculados às máquinas.
-* Catálogo de templates com criação, edição, exclusão e execução.
-* Logs de execução, agendamentos e auditoria.
-* Tela de usuários para administradores.
-* Perfil com troca de senha.
+- Dashboard com resumo da frota.
+- Lista de máquinas com busca e filtro por status.
+- Geração de token e comando de instalação do agent.
+- Página de detalhe da máquina com CPU, RAM, disco e inventário.
+- Terminal remoto em tempo real.
+- Quick actions para tmux.
+- Execução de templates pelo terminal.
+- Reinício e desligamento remotos.
+- Gerenciamento de grupos vinculados às máquinas.
+- Catálogo de templates com criação, edição, exclusão e execução.
+- Logs de execução, agendamentos e auditoria.
+- Tela de usuários para administradores.
+- Perfil com troca de senha.
 
 ### Backend e API
 
-* API HTTP integrada à aplicação.
-* Server functions para o painel.
-* Persistência em PostgreSQL.
-* Endpoints para registro do agent, heartbeat, polling, resultado de execução e descomissionamento.
-* WebSocket para túnel persistente do agent.
-* WebSocket para terminal remoto no navegador.
-* Distribuição do runtime do agent pela própria API.
-* Endpoints oficiais de `install.sh` e `update.sh`.
+- API HTTP integrada à aplicação.
+- Server functions para o painel.
+- Persistência em PostgreSQL.
+- Endpoints para registro do agent, heartbeat, polling, resultado de execução e descomissionamento.
+- WebSocket para túnel persistente do agent.
+- WebSocket para terminal remoto no navegador.
+- Distribuição do runtime do agent pela própria API.
+- Endpoints oficiais de `install.sh` e `update.sh`.
 
 ### Agent Linux
 
-* Agent modular escrito em Python.
-* Registro inicial com token de enrollment.
-* Heartbeat periódico com inventário da máquina.
-* Polling de fila de execução.
-* Execução remota de comandos.
-* Túnel persistente via WebSocket para terminal remoto.
-* Suporte a instalação como serviço systemd.
-* Atualização automatizada do runtime.
-* Self-uninstall remoto.
+- Agent modular escrito em Python.
+- Registro inicial com token de enrollment.
+- Heartbeat periódico com inventário da máquina.
+- Polling de fila de execução.
+- Execução remota de comandos.
+- Túnel persistente via WebSocket para terminal remoto.
+- Suporte a instalação como serviço systemd.
+- Atualização automatizada do runtime.
+- Self-uninstall remoto.
 
 ---
 
@@ -117,12 +122,12 @@ Depois do registro, o agent utiliza um segredo próprio para assinar as requisi�
 
 Após instalado, o agent:
 
-* envia heartbeat para a API;
-* atualiza inventário da máquina;
-* consulta a fila de execuções;
-* executa comandos autorizados;
-* devolve saída, erro, status e duração;
-* mantém túnel WebSocket persistente para terminal remoto.
+- envia heartbeat para a API;
+- atualiza inventário da máquina;
+- consulta a fila de execuções;
+- executa comandos autorizados;
+- devolve saída, erro, status e duração;
+- mantém túnel WebSocket persistente para terminal remoto.
 
 As execuções podem ser originadas por templates, ações operacionais ou terminal remoto.
 
@@ -134,12 +139,12 @@ O AgentLX suporta execução remota por fila.
 
 Cada execução passa por estados como:
 
-* `queued`
-* `dispatched`
-* `running`
-* `success`
-* `failed`
-* `cancelled`
+- `queued`
+- `dispatched`
+- `running`
+- `success`
+- `failed`
+- `cancelled`
 
 As execuções são registradas no banco e podem ser acompanhadas nos logs do painel.
 
@@ -168,40 +173,40 @@ O AgentLX lida com acesso remoto e execução de comandos em servidores Linux. P
 
 Recursos atuais de segurança:
 
-* autenticação por sessão no painel;
-* controle de acesso por role;
-* permissões por tela;
-* restrição de máquinas por grupos;
-* criação do primeiro administrador apenas por script;
-* senha com hash via `scrypt`;
-* proteção de origem em ações sensíveis;
-* cookies seguros em produção;
-* headers de endurecimento HTTP;
-* CSP;
-* HSTS;
-* `frame-ancestors 'none'`;
-* `Referrer-Policy: no-referrer`;
-* `X-Content-Type-Options: nosniff`.
+- autenticação por sessão no painel;
+- controle de acesso por role;
+- permissões por tela;
+- restrição de máquinas por grupos;
+- criação do primeiro administrador apenas por script;
+- senha com hash via `scrypt`;
+- proteção de origem em ações sensíveis;
+- cookies seguros em produção;
+- headers de endurecimento HTTP;
+- CSP;
+- HSTS;
+- `frame-ancestors 'none'`;
+- `Referrer-Policy: no-referrer`;
+- `X-Content-Type-Options: nosniff`.
 
 ### Segurança do agent
 
-* Token de enrollment temporário e com expiração.
-* Token pendente cifrado no banco.
-* `agent_secret` emitido no registro inicial.
-* Requisições operacionais assinadas com HMAC-SHA256.
-* Uso de timestamp e nonce para reduzir risco de replay.
-* Sem fallback Bearer em endpoints operacionais do agent.
-* Comunicação operacional via `Authorization: Agent <agent_id>`.
-* Segredo do agent persistido localmente no host instalado.
+- Token de enrollment temporário e com expiração.
+- Token pendente cifrado no banco.
+- `agent_secret` emitido no registro inicial.
+- Requisições operacionais assinadas com HMAC-SHA256.
+- Uso de timestamp e nonce para reduzir risco de replay.
+- Sem fallback Bearer em endpoints operacionais do agent.
+- Comunicação operacional via `Authorization: Agent <agent_id>`.
+- Segredo do agent persistido localmente no host instalado.
 
 ### Auditoria e logs
 
-* Registro de ações relevantes no painel.
-* Logs de execução com status, saída, erro e duração.
-* Redaction de segredos em saídas e erros.
-* Mascaramento de tokens, senhas, chaves e headers sensíveis.
-* Severidade em eventos de auditoria.
-* Hash de integridade em registros de auditoria.
+- Registro de ações relevantes no painel.
+- Logs de execução com status, saída, erro e duração.
+- Redaction de segredos em saídas e erros.
+- Mascaramento de tokens, senhas, chaves e headers sensíveis.
+- Severidade em eventos de auditoria.
+- Hash de integridade em registros de auditoria.
 
 > Importante: o AgentLX deve ser publicado sempre atrás de HTTPS em produção. Caso `APP_ORIGIN` não esteja configurado com `https://`, recursos sensíveis ficam bloqueados.
 
@@ -211,25 +216,25 @@ Recursos atuais de segurança:
 
 ### Aplicação
 
-* Node.js 24+
-* React 19
-* TanStack Start
-* TanStack Router
-* TanStack React Query
-* Vite 7
-* Tailwind CSS 4
-* Radix UI
-* xterm.js
-* ws
-* pg
-* zod
-* PostgreSQL 16+
+- Node.js 24+
+- React 19
+- TanStack Start
+- TanStack Router
+- TanStack React Query
+- Vite 7
+- Tailwind CSS 4
+- Radix UI
+- xterm.js
+- ws
+- pg
+- zod
+- PostgreSQL 16+
 
 ### Agent Linux
 
-* Python 3
-* websockets
-* systemd, recomendado para produção
+- Python 3
+- websockets
+- systemd, recomendado para produção
 
 ---
 
@@ -237,18 +242,18 @@ Recursos atuais de segurança:
 
 ### Desenvolvimento local
 
-* Node.js 24+
-* npm
-* PostgreSQL 16+
+- Node.js 24+
+- npm
+- PostgreSQL 16+
 
 ### Host Linux gerenciado
 
-* Linux moderno
-* `curl`
-* `python3`
-* `python3-venv`
-* `systemd`, recomendado
-* acesso HTTPS até a API do AgentLX
+- Linux moderno
+- `curl`
+- `python3`
+- `python3-venv`
+- `systemd`, recomendado
+- acesso HTTPS até a API do AgentLX
 
 ---
 
@@ -311,9 +316,9 @@ npm run start
 
 O comando `start` sobe o servidor Node responsável por:
 
-* servir o build client;
-* executar o SSR do TanStack Start;
-* iniciar o WebSocket do terminal remoto.
+- servir o build client;
+- executar o SSR do TanStack Start;
+- iniciar o WebSocket do terminal remoto.
 
 ---
 
@@ -353,10 +358,10 @@ docker compose --env-file .env.docker --profile with-db up -d --build
 
 Nesse modo:
 
-* o container do banco é criado;
-* o app aguarda o PostgreSQL responder;
-* o schema é aplicado;
-* a aplicação é iniciada.
+- o container do banco é criado;
+- o app aguarda o PostgreSQL responder;
+- o schema é aplicado;
+- a aplicação é iniciada.
 
 ### Reset completo do ambiente Docker
 
@@ -408,10 +413,10 @@ AGENTLX_SEED_ON_BOOT=false
 
 O AgentLX foi pensado para rodar atrás de um proxy HTTPS, como:
 
-* Nginx Proxy Manager;
-* Traefik;
-* Nginx;
-* Caddy.
+- Nginx Proxy Manager;
+- Traefik;
+- Nginx;
+- Caddy.
 
 O proxy precisa encaminhar HTTP normal e WebSocket.
 
@@ -445,13 +450,13 @@ curl -fsSL https://api.seudominio.com/api/agent/install.sh | sudo bash -s -- \
 
 O instalador:
 
-* valida instalação existente;
-* baixa o runtime do agent;
-* cria `config.json`;
-* cria virtualenv Python;
-* instala dependências;
-* registra a máquina;
-* instala e inicia o serviço systemd quando possível.
+- valida instalação existente;
+- baixa o runtime do agent;
+- cria `config.json`;
+- cria virtualenv Python;
+- instala dependências;
+- registra a máquina;
+- instala e inicia o serviço systemd quando possível.
 
 ---
 
@@ -466,12 +471,12 @@ sudo bash /tmp/agentlx-update.sh --api-base-url https://api.seudominio.com
 
 O update:
 
-* baixa o manifest do runtime;
-* atualiza apenas arquivos declarados;
-* remove arquivos antigos removidos do runtime;
-* reinstala dependências quando necessário;
-* reinicia o serviço apenas quando houve alteração;
-* preserva `config.json`, `agent_id`, `machine_id` e `agent_secret`.
+- baixa o manifest do runtime;
+- atualiza apenas arquivos declarados;
+- remove arquivos antigos removidos do runtime;
+- reinstala dependências quando necessário;
+- reinicia o serviço apenas quando houve alteração;
+- preserva `config.json`, `agent_id`, `machine_id` e `agent_secret`.
 
 ---
 
@@ -574,12 +579,12 @@ Resposta esperada:
 
 O sistema inclui templates operacionais padrão, como:
 
-* `carbonio-ssl-check`
-* `carbonio-mailq-status`
-* `system-disk-usage`
-* `system-top-processes`
-* `system-package-updates-debian`
-* `system-package-updates-redhat`
+- `carbonio-ssl-check`
+- `carbonio-mailq-status`
+- `system-disk-usage`
+- `system-top-processes`
+- `system-package-updates-debian`
+- `system-package-updates-redhat`
 
 Templates personalizados também podem ser criados pela interface web.
 
@@ -589,16 +594,16 @@ Templates personalizados também podem ser criados pela interface web.
 
 O status visual das máquinas é calculado a partir de fatores como:
 
-* último heartbeat;
-* CPU;
-* RAM;
-* disco.
+- último heartbeat;
+- CPU;
+- RAM;
+- disco.
 
 Estados principais:
 
-* `online`
-* `warning`
-* `offline`
+- `online`
+- `warning`
+- `offline`
 
 Por padrão, a máquina pode ser considerada offline se ficar sem heartbeat por tempo suficiente, e warning se estiver com métricas altas ou heartbeat atrasado.
 
@@ -614,30 +619,30 @@ Verifique se os assets em `/assets/*` estão sendo servidos corretamente pelo ap
 
 Verifique:
 
-* `config.json`;
-* acesso da máquina até `APP_ORIGIN`;
-* status do serviço `agentlx`;
-* logs com `journalctl -u agentlx -f`;
-* conectividade com `/api/agent/tunnel`.
+- `config.json`;
+- acesso da máquina até `APP_ORIGIN`;
+- status do serviço `agentlx`;
+- logs com `journalctl -u agentlx -f`;
+- conectividade com `/api/agent/tunnel`.
 
 ### O terminal remoto não conecta
 
 Verifique:
 
-* se a máquina está online;
-* se o agent abriu túnel persistente;
-* se o proxy encaminha WebSocket;
-* se `APP_ORIGIN` bate exatamente com o domínio acessado pelo navegador.
+- se a máquina está online;
+- se o agent abriu túnel persistente;
+- se o proxy encaminha WebSocket;
+- se `APP_ORIGIN` bate exatamente com o domínio acessado pelo navegador.
 
 ### O host Linux é muito antigo
 
 Ambientes legados podem falhar por:
 
-* TLS antigo;
-* `curl` desatualizado;
-* ausência de `python3`;
-* ausência de `python3-venv`;
-* ausência de `systemd`.
+- TLS antigo;
+- `curl` desatualizado;
+- ausência de `python3`;
+- ausência de `python3-venv`;
+- ausência de `systemd`.
 
 O alvo recomendado são distribuições Linux modernas.
 
@@ -670,7 +675,6 @@ O AgentLX já funciona como uma aplicação única que concentra painel, API HTT
 
 O projeto ainda deve ser tratado como software em evolução. Antes de usar em produção, revise a documentação de hardening, configure HTTPS, proteja os segredos, restrinja acesso ao painel, valide permissões e teste o agent em ambiente controlado.
 
-
 ```mermaid
 flowchart LR
   UI["Painel web\nTanStack Start + React"] --> API["App Node\nSSR + API + WebSocket"]
@@ -680,4 +684,3 @@ flowchart LR
   AGENT --> WS2["/api/agent/tunnel"]
   API --> RUNTIME["agent-linux/\nruntime publicado pela API"]
 ```
-

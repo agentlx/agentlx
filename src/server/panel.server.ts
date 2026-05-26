@@ -52,6 +52,7 @@ import { dbQuery, withTransaction } from "./db.server";
 import { getEnv } from "./env.server";
 import {
   cancelEnterpriseRecurringTemplateSchedule,
+  assertEnterpriseResourceCanCreate,
   createEnterpriseRecurringTemplateSchedule,
   hasEnterpriseFeature,
   listEnterpriseRecurringSchedules,
@@ -1801,6 +1802,14 @@ export async function createMachineEnrollmentPending(
   }
 
   await withTransaction(async (client) => {
+    await assertEnterpriseResourceCanCreate(
+      {
+        resource: "machines",
+        includePendingEnrollments: true,
+      },
+      { query: (text, params) => client.query(text, params) },
+    );
+
     const existing = await client.query<{ id: string }>(
       `
         SELECT id
@@ -2134,6 +2143,11 @@ export async function createMachineGroup(
   }
 
   return withTransaction(async (client) => {
+    await assertEnterpriseResourceCanCreate(
+      { resource: "groups" },
+      { query: (text, params) => client.query(text, params) },
+    );
+
     const duplicate = await loadGroupByName(name, client);
     if (duplicate) {
       throw new Error("Ja existe um grupo com este nome.");
@@ -2398,6 +2412,11 @@ export async function createActionTemplate(
   input: CreateActionTemplateInput,
 ): Promise<ActionTemplateView> {
   return withTransaction(async (client) => {
+    await assertEnterpriseResourceCanCreate(
+      { resource: "templates" },
+      { query: (text, params) => client.query(text, params) },
+    );
+
     const baseId = slugifyKey(input.name) || "custom-template";
     const templateId = `custom-${baseId}-${crypto.randomUUID().slice(0, 8)}`;
     const templateDescription = input.description.trim() || null;

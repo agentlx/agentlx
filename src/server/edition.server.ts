@@ -3,6 +3,8 @@ import {
   enterpriseFeatures,
   type EditionStatusView,
   type EnterpriseFeature,
+  type EnterpriseResourceLimitState,
+  type ManagedResourceKind,
 } from "@/lib/edition";
 import type {
   RecurringScheduleLookupInput,
@@ -126,6 +128,37 @@ export async function materializeEnterpriseRecurringExecutions(
   }
 
   await provider.recurringJobs.materializeDueExecutions(input, enterpriseRuntimeContext(client));
+}
+
+export async function getEnterpriseResourceLimit(
+  input: {
+    resource: ManagedResourceKind;
+    includePendingEnrollments?: boolean;
+  },
+  client?: EnterpriseDbClient,
+): Promise<EnterpriseResourceLimitState> {
+  const provider = await loadProvider();
+  if (!provider.resourceLimits) {
+    throw new Error("Limites de recursos nao estao configurados nesta edicao.");
+  }
+
+  return provider.resourceLimits.getLimit(input, enterpriseRuntimeContext(client));
+}
+
+export async function assertEnterpriseResourceCanCreate(
+  input: {
+    resource: ManagedResourceKind;
+    increment?: number;
+    includePendingEnrollments?: boolean;
+  },
+  client?: EnterpriseDbClient,
+): Promise<EnterpriseResourceLimitState> {
+  const provider = await loadProvider();
+  if (!provider.resourceLimits) {
+    throw new Error("Limites de recursos nao estao configurados nesta edicao.");
+  }
+
+  return provider.resourceLimits.assertCanCreate(input, enterpriseRuntimeContext(client));
 }
 
 function enterpriseRuntimeContext(client?: EnterpriseDbClient): EnterpriseRuntimeContext {

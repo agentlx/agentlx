@@ -4,6 +4,14 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.11 - 2026-05-26
+
+### Changed
+
+- Move machine, group and template scale limits behind the Enterprise provider contract.
+- Limit AgentLX Community to 10 registered machines, 10 templates and 10 machine groups.
+- Enforce machine limits both when generating pending enrollments and when an agent registers a new machine.
+
 ## 1.0.10 - 2026-05-25
 
 ### Changed
