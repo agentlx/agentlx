@@ -35,7 +35,12 @@ jobs:
       AGENTLX_MFA_ENCRYPTION_SECRET: ci-mfa-encryption-secret-32-chars
       AGENTLX_SEED_ON_BOOT: "false"
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout public repository
+        run: |
+          git init .
+          git remote add origin https://github.com/${GITHUB_REPOSITORY}.git
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - uses: actions/setup-node@v4
         with:
           node-version: 24
