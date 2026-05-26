@@ -4,6 +4,12 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.15 - 2026-05-26
+
+### Fixed
+
+- Fix Enterprise builds so the runtime provider resolves to the private Enterprise overlay instead of the Community placeholder.
+
 ## 1.0.14 - 2026-05-26
 
 ### Fixed

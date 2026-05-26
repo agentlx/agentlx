@@ -22,15 +22,15 @@ Examples:
 3. Create and push a tag:
 
 ```bash
-git tag v1.0.14
-git push origin v1.0.14
+git tag v1.0.15
+git push origin v1.0.15
 ```
 
 The release workflow publishes:
 
 ```text
-ghcr.io/<owner>/agentlx:v1.0.14
-ghcr.io/<owner>/agentlx:1.0.14
+ghcr.io/<owner>/agentlx:v1.0.15
+ghcr.io/<owner>/agentlx:1.0.15
 ghcr.io/<owner>/agentlx:1.0
 ghcr.io/<owner>/agentlx:latest
 ```
