@@ -1,4 +1,4 @@
-name: CI
+name: CI Main
 
 on:
   workflow_dispatch:
