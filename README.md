@@ -319,6 +319,24 @@ O comando `start` sobe o servidor Node responsável por:
 
 ## Docker
 
+### Imagem oficial
+
+A imagem pública recomendada para produção é versionada e deve ficar fixada no Compose:
+
+```yaml
+image: ghcr.io/agentlx/agentlx:v1.0.10
+```
+
+Para atualizar uma instalação existente:
+
+```bash
+cd /opt/agentlx-panel
+sed -i 's|ghcr.io/agentlx/agentlx:v[0-9.]*|ghcr.io/agentlx/agentlx:v1.0.10|' docker-compose.yml
+docker compose pull app
+docker compose up -d --force-recreate app
+docker compose logs -f app
+```
+
 ### Docker com PostgreSQL no Compose
 
 Crie o arquivo de ambiente Docker:
