@@ -10,11 +10,13 @@ type ResourceLimitInput = {
 
 export const communityResourceLimits: EnterpriseResourceLimits = {
   async getLimit(input, context) {
+    await syncCommunityResourceLimits(context);
     const used = await countResource(input, context);
     return buildLimitState(input.resource, used, COMMUNITY_RESOURCE_LIMIT);
   },
   async assertCanCreate(input, context) {
     await lockResourceLimit(input.resource, context);
+    await syncCommunityResourceLimits(context);
     const used = await countResource(input, context);
     const increment = Math.max(1, Math.trunc(input.increment ?? 1));
     const state = buildLimitState(input.resource, used, COMMUNITY_RESOURCE_LIMIT, increment);
@@ -26,6 +28,23 @@ export const communityResourceLimits: EnterpriseResourceLimits = {
     return state;
   },
 };
+
+async function syncCommunityResourceLimits(context: EnterpriseRuntimeContext) {
+  const resources: ManagedResourceKind[] = ["machines", "templates", "groups"];
+
+  for (const resource of resources) {
+    await context.query(
+      `
+        INSERT INTO resource_limit_enforcement (resource, limit_value, updated_at)
+        VALUES ($1, $2, now())
+        ON CONFLICT (resource) DO UPDATE
+        SET limit_value = EXCLUDED.limit_value,
+            updated_at = EXCLUDED.updated_at
+      `,
+      [resource, COMMUNITY_RESOURCE_LIMIT],
+    );
+  }
+}
 
 async function lockResourceLimit(resource: ManagedResourceKind, context: EnterpriseRuntimeContext) {
   await context.query("SELECT pg_advisory_xact_lock(hashtext($1))", [

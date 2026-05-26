@@ -11,6 +11,7 @@ The project uses semantic versioning.
 - Move machine, group and template scale limits behind the Enterprise provider contract.
 - Limit AgentLX Community to 10 registered machines, 10 templates and 10 machine groups.
 - Enforce machine limits both when generating pending enrollments and when an agent registers a new machine.
+- Add database-level enforcement for the official Community resource limits.
 
 ## 1.0.10 - 2026-05-25
 
