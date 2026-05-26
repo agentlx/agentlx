@@ -1,0 +1,13 @@
+name: Actions Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "GitHub Actions probe OK"
