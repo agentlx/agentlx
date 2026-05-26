@@ -11,7 +11,13 @@ Before updating:
 Update the pinned image tag:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v1.0.11
+image: ghcr.io/agentlx/agentlx:v1.0.12
+```
+
+For production, prefer the release digest:
+
+```yaml
+image: ghcr.io/agentlx/agentlx:v1.0.12@sha256:<release-digest>
 ```
 
 Then run:
@@ -22,6 +28,13 @@ docker compose up -d
 ```
 
 The app runs the database schema bootstrap on startup.
+
+Validate build metadata and resource limit enforcement after the container starts:
+
+```bash
+curl -fsS https://agentlx.example.com/api/health
+curl -fsS https://agentlx.example.com/api/deployment-status
+```
 
 ## Agent Update
 

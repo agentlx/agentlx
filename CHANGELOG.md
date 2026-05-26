@@ -4,6 +4,15 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.12 - 2026-05-26
+
+### Added
+
+- Expose build provenance metadata in health and deployment status responses.
+- Add resource-limit enforcement integrity checks to the health response.
+- Add official build metadata to the Docker image runtime environment.
+- Document digest-pinned image deployment for production installs.
+
 ## 1.0.11 - 2026-05-26
 
 ### Changed

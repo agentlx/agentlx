@@ -24,6 +24,11 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
+          {
+            echo "AGENTLX_RELEASE_VERSION=${version}"
+            echo "AGENTLX_RELEASE_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER}/agentlx:${GITHUB_REF_NAME}"
+          } >> "$GITHUB_ENV"
+
           awk -v version="$version" '
             index($0, "## " version " - ") == 1 {
               found=1
@@ -69,6 +74,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            AGENTLX_VERSION=${{ env.AGENTLX_RELEASE_VERSION }}
+            AGENTLX_BUILD_REVISION=${{ github.sha }}
+            AGENTLX_BUILD_SOURCE=github-actions
+            AGENTLX_IMAGE_REF=${{ env.AGENTLX_RELEASE_IMAGE }}
+            AGENTLX_OFFICIAL_BUILD=true
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:

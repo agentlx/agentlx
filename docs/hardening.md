@@ -12,8 +12,9 @@ Use this checklist before production:
 - Do not expose PostgreSQL to the public internet.
 - Use strong unique database credentials.
 - Keep `AGENTLX_SEED_ON_BOOT=false`.
-- Pin Docker images to a version, for example `ghcr.io/agentlx/agentlx:v1.0.11`.
+- Pin Docker images to a version and digest, for example `ghcr.io/agentlx/agentlx:v1.0.12@sha256:<release-digest>`.
 - Avoid `latest` in production.
+- Check `/api/health` after deploy and confirm `resourceLimitEnforcement.status` is `ok`.
 - Review command templates before execution.
 - Restrict user permissions and machine groups.
 - Monitor audit logs.

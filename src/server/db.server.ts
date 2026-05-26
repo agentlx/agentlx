@@ -626,6 +626,83 @@ export async function dbQuery<T extends Record<string, unknown>>(
   return pool.query<T>(text, params);
 }
 
+export async function getResourceLimitEnforcementState() {
+  await ensureDatabaseReady();
+  const tableResult = await pool.query<{ table_exists: boolean }>(
+    "SELECT to_regclass('public.resource_limit_enforcement') IS NOT NULL AS table_exists",
+  );
+  if (!tableResult.rows[0]?.table_exists) {
+    return {
+      ok: false,
+      status: "missing",
+      tableExists: false,
+      functionCount: 0,
+      triggerCount: 0,
+      configuredCount: 0,
+      communityDefaultCount: 0,
+    };
+  }
+
+  const result = await pool.query<{
+    function_count: string;
+    trigger_count: string;
+    configured_count: string;
+    community_default_count: string;
+  }>(`
+    SELECT
+      (
+        SELECT COUNT(*)::text
+        FROM pg_proc
+        WHERE proname IN (
+          'enforce_agentlx_resource_limit',
+          'enforce_machine_insert_limit',
+          'enforce_pending_machine_enrollment_limit',
+          'enforce_template_insert_limit',
+          'enforce_group_insert_limit'
+        )
+      ) AS function_count,
+      (
+        SELECT COUNT(*)::text
+        FROM pg_trigger
+        WHERE tgname IN (
+          'trg_enforce_machine_insert_limit',
+          'trg_enforce_pending_machine_enrollment_limit',
+          'trg_enforce_template_insert_limit',
+          'trg_enforce_group_insert_limit'
+        )
+          AND NOT tgisinternal
+      ) AS trigger_count,
+      (
+        SELECT COUNT(*)::text
+        FROM resource_limit_enforcement
+        WHERE resource IN ('machines', 'templates', 'groups')
+      ) AS configured_count,
+      (
+        SELECT COUNT(*)::text
+        FROM resource_limit_enforcement
+        WHERE resource IN ('machines', 'templates', 'groups')
+          AND limit_value = 10
+      ) AS community_default_count
+  `);
+
+  const row = result.rows[0];
+  const functionCount = Number(row?.function_count ?? 0);
+  const triggerCount = Number(row?.trigger_count ?? 0);
+  const configuredCount = Number(row?.configured_count ?? 0);
+  const communityDefaultCount = Number(row?.community_default_count ?? 0);
+  const ok = functionCount === 5 && triggerCount === 4 && configuredCount === 3;
+
+  return {
+    ok,
+    status: ok ? "ok" : "degraded",
+    tableExists: true,
+    functionCount,
+    triggerCount,
+    configuredCount,
+    communityDefaultCount,
+  };
+}
+
 export async function withTransaction<T>(fn: (client: pg.PoolClient) => Promise<T>) {
   await ensureDatabaseReady();
   const client = await pool.connect();
