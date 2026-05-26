@@ -17,7 +17,7 @@ image: ghcr.io/agentlx/agentlx:v1.0.14
 For production, prefer the release digest:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v1.0.14@sha256:<published-digest>
+image: ghcr.io/agentlx/agentlx:v1.0.14@sha256:d0eeb7980e720638fcb42b1b71efa003d2b8b97a014304cf45f597070e8f2b57
 ```
 
 Then run:
