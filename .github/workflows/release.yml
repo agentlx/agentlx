@@ -13,7 +13,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout public repository
+        run: |
+          git init .
+          git remote add origin https://github.com/${GITHUB_REPOSITORY}.git
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Extract changelog notes
         id: changelog
         shell: bash
