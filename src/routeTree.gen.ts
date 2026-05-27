@@ -27,6 +27,7 @@ import { Route as ApiTerminalPresenceRouteImport } from './routes/api/terminal/p
 import { Route as ApiTerminalCloseRouteImport } from './routes/api/terminal/close'
 import { Route as ApiSecurityRulesRouteImport } from './routes/api/security/rules'
 import { Route as ApiSecurityEventsRouteImport } from './routes/api/security/events'
+import { Route as ApiSecurityDashboardRouteImport } from './routes/api/security/dashboard'
 import { Route as ApiSecurityAlertsRouteImport } from './routes/api/security/alerts'
 import { Route as ApiAgentUpdateDotshRouteImport } from './routes/api/agent/update[.]sh'
 import { Route as ApiAgentRegisterRouteImport } from './routes/api/agent/register'
@@ -134,6 +135,11 @@ const ApiSecurityRulesRoute = ApiSecurityRulesRouteImport.update({
 const ApiSecurityEventsRoute = ApiSecurityEventsRouteImport.update({
   id: '/api/security/events',
   path: '/api/security/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSecurityDashboardRoute = ApiSecurityDashboardRouteImport.update({
+  id: '/api/security/dashboard',
+  path: '/api/security/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSecurityAlertsRoute = ApiSecurityAlertsRouteImport.update({
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/api/agent/register': typeof ApiAgentRegisterRoute
   '/api/agent/update.sh': typeof ApiAgentUpdateDotshRoute
   '/api/security/alerts': typeof ApiSecurityAlertsRouteWithChildren
+  '/api/security/dashboard': typeof ApiSecurityDashboardRoute
   '/api/security/events': typeof ApiSecurityEventsRoute
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
@@ -294,6 +301,7 @@ export interface FileRoutesByTo {
   '/api/agent/register': typeof ApiAgentRegisterRoute
   '/api/agent/update.sh': typeof ApiAgentUpdateDotshRoute
   '/api/security/alerts': typeof ApiSecurityAlertsRouteWithChildren
+  '/api/security/dashboard': typeof ApiSecurityDashboardRoute
   '/api/security/events': typeof ApiSecurityEventsRoute
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/api/agent/register': typeof ApiAgentRegisterRoute
   '/api/agent/update.sh': typeof ApiAgentUpdateDotshRoute
   '/api/security/alerts': typeof ApiSecurityAlertsRouteWithChildren
+  '/api/security/dashboard': typeof ApiSecurityDashboardRoute
   '/api/security/events': typeof ApiSecurityEventsRoute
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
@@ -373,6 +382,7 @@ export interface FileRouteTypes {
     | '/api/agent/register'
     | '/api/agent/update.sh'
     | '/api/security/alerts'
+    | '/api/security/dashboard'
     | '/api/security/events'
     | '/api/security/rules'
     | '/api/terminal/close'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/api/agent/register'
     | '/api/agent/update.sh'
     | '/api/security/alerts'
+    | '/api/security/dashboard'
     | '/api/security/events'
     | '/api/security/rules'
     | '/api/terminal/close'
@@ -449,6 +460,7 @@ export interface FileRouteTypes {
     | '/api/agent/register'
     | '/api/agent/update.sh'
     | '/api/security/alerts'
+    | '/api/security/dashboard'
     | '/api/security/events'
     | '/api/security/rules'
     | '/api/terminal/close'
@@ -488,6 +500,7 @@ export interface RootRouteChildren {
   ApiAgentRegisterRoute: typeof ApiAgentRegisterRoute
   ApiAgentUpdateDotshRoute: typeof ApiAgentUpdateDotshRoute
   ApiSecurityAlertsRoute: typeof ApiSecurityAlertsRouteWithChildren
+  ApiSecurityDashboardRoute: typeof ApiSecurityDashboardRoute
   ApiSecurityEventsRoute: typeof ApiSecurityEventsRoute
   ApiSecurityRulesRoute: typeof ApiSecurityRulesRouteWithChildren
   ApiTerminalCloseRoute: typeof ApiTerminalCloseRoute
@@ -627,6 +640,13 @@ declare module '@tanstack/react-router' {
       path: '/api/security/events'
       fullPath: '/api/security/events'
       preLoaderRoute: typeof ApiSecurityEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/security/dashboard': {
+      id: '/api/security/dashboard'
+      path: '/api/security/dashboard'
+      fullPath: '/api/security/dashboard'
+      preLoaderRoute: typeof ApiSecurityDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/security/alerts': {
@@ -819,6 +839,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentRegisterRoute: ApiAgentRegisterRoute,
   ApiAgentUpdateDotshRoute: ApiAgentUpdateDotshRoute,
   ApiSecurityAlertsRoute: ApiSecurityAlertsRouteWithChildren,
+  ApiSecurityDashboardRoute: ApiSecurityDashboardRoute,
   ApiSecurityEventsRoute: ApiSecurityEventsRoute,
   ApiSecurityRulesRoute: ApiSecurityRulesRouteWithChildren,
   ApiTerminalCloseRoute: ApiTerminalCloseRoute,

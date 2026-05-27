@@ -21,6 +21,7 @@ import type {
   AgentSecurityEventsIngestInput,
   CreateSecurityAlertCommentInput,
   SecurityAlertListInput,
+  SecurityDashboardInput,
   SecurityEventListInput,
   SecurityPrincipal,
   SecurityRuleListInput,
@@ -296,6 +297,18 @@ export async function listEnterpriseSecurityAlerts(
   }
 
   return provider.securityMonitoring.listAlerts(input, enterpriseRuntimeContext());
+}
+
+export async function getEnterpriseSecurityDashboard(
+  input: SecurityDashboardInput & { principal: SecurityPrincipal },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.getDashboard(input, enterpriseRuntimeContext());
 }
 
 export async function getEnterpriseSecurityAlert(input: {

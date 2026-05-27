@@ -15,6 +15,8 @@ import type {
   SecurityAlertCommentView,
   SecurityAlertListInput,
   SecurityAlertView,
+  SecurityDashboardInput,
+  SecurityDashboardView,
   SecurityEventListInput,
   SecurityEventView,
   SecurityListResponse,
@@ -181,6 +183,10 @@ export type EnterpriseSecurityMonitoring = {
     },
     context: EnterpriseRuntimeContext,
   ): Promise<{ ok: true; accepted: number; alertCount: number }>;
+  getDashboard(
+    input: SecurityDashboardInput & { principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityDashboardView>;
   listAlerts(
     input: SecurityAlertListInput & { principal: SecurityPrincipal },
     context: EnterpriseRuntimeContext,

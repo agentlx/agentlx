@@ -14,6 +14,11 @@ export const securityAlertStatusValues = [
 ] as const;
 export type SecurityAlertStatus = (typeof securityAlertStatusValues)[number];
 
+export const securityDashboardPeriodValues = ["1h", "24h", "7d", "30d"] as const;
+export type SecurityDashboardPeriod = (typeof securityDashboardPeriodValues)[number];
+
+const optionalLevelSchema = z.coerce.number().int().min(0).max(15).optional();
+
 export const securityEventSchema = z.object({
   eventType: z
     .string()
@@ -63,6 +68,16 @@ export const securityRuleListInputSchema = z.object({
   enabled: z.enum(["all", "true", "false"]).default("all"),
 });
 
+export const securityDashboardInputSchema = z.object({
+  period: z.enum(securityDashboardPeriodValues).default("24h"),
+  machineId: z.string().trim().min(1).max(120).optional(),
+  severity: z.enum(["all", ...securitySeverityValues]).default("all"),
+  status: z.enum(["all", ...securityAlertStatusValues]).default("all"),
+  eventType: z.string().trim().min(1).max(120).optional(),
+  ruleId: z.string().trim().min(1).max(120).optional(),
+  minLevel: optionalLevelSchema,
+});
+
 export const updateSecurityRuleSchema = z.object({
   enabled: z.boolean(),
 });
@@ -72,6 +87,7 @@ export type AgentSecurityEventsIngestInput = z.infer<typeof agentSecurityEventsI
 export type SecurityAlertListInput = z.infer<typeof securityAlertListInputSchema>;
 export type SecurityEventListInput = z.infer<typeof securityEventListInputSchema>;
 export type SecurityRuleListInput = z.infer<typeof securityRuleListInputSchema>;
+export type SecurityDashboardInput = z.infer<typeof securityDashboardInputSchema>;
 export type UpdateSecurityAlertStatusInput = z.infer<typeof updateSecurityAlertStatusSchema>;
 export type CreateSecurityAlertCommentInput = z.infer<typeof createSecurityAlertCommentSchema>;
 export type UpdateSecurityRuleInput = z.infer<typeof updateSecurityRuleSchema>;
@@ -101,6 +117,10 @@ export type SecurityAlertView = {
   machineId: string;
   agentId: string | null;
   severity: SecuritySeverity;
+  level: number | null;
+  mitreTactic: string | null;
+  mitreTechnique: string | null;
+  mitreTechniqueId: string | null;
   status: SecurityAlertStatus;
   title: string;
   description: string;
@@ -145,6 +165,10 @@ export type SecurityRuleView = {
   eventType: string | null;
   ruleKind: string;
   severity: SecuritySeverity;
+  level: number | null;
+  mitreTactic: string | null;
+  mitreTechnique: string | null;
+  mitreTechniqueId: string | null;
   enabled: boolean;
   groupBy: string[];
   condition: Record<string, unknown>;
@@ -158,5 +182,72 @@ export type SecurityListResponse<T> = {
     limit: number;
     offset: number;
     hasMore: boolean;
+  };
+};
+
+export type SecurityDashboardView = {
+  period: SecurityDashboardPeriod;
+  summary: {
+    totalEvents: number;
+    authenticationFailures: number;
+    authenticationSuccess: number;
+    openAlerts: number;
+    criticalAlerts: number;
+    highAlerts: number;
+    monitoredMachines: number;
+    machinesWithAlerts: number;
+  };
+  alertsBySeverity: Record<SecuritySeverity, number>;
+  alertsByStatus: Record<SecurityAlertStatus, number>;
+  eventsOverTime: Array<{
+    timestamp: string;
+    totalEvents: number;
+    failedLogins: number;
+    successfulLogins: number;
+    alerts: number;
+  }>;
+  topMachines: Array<{
+    machineId: string;
+    hostname: string;
+    os: string;
+    totalEvents: number;
+    totalAlerts: number;
+    criticalAlerts: number;
+    highAlerts: number;
+    lastSeenAt: string;
+  }>;
+  topSourceIps: Array<{
+    srcIp: string;
+    totalEvents: number;
+    failedLogins: number;
+    affectedMachines: number;
+  }>;
+  recentAlerts: Array<{
+    alertId: string;
+    title: string;
+    severity: SecuritySeverity;
+    level: number | null;
+    status: SecurityAlertStatus;
+    machineId: string;
+    hostname: string;
+    ruleId: string;
+    ruleName: string;
+    eventCount: number;
+    firstSeenAt: string;
+    lastSeenAt: string;
+    mitreTactic: string | null;
+    mitreTechnique: string | null;
+    mitreTechniqueId: string | null;
+  }>;
+  mitreSummary: {
+    byTactic: Array<{
+      tactic: string;
+      count: number;
+    }>;
+    byTechnique: Array<{
+      techniqueId: string;
+      technique: string;
+      count: number;
+    }>;
   };
 };
