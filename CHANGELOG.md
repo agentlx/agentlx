@@ -4,6 +4,14 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.21 - 2026-05-27
+
+### Fixed
+
+- Keep the remote terminal mounted while machine detail data refreshes after the lazy template loading changes introduced in 1.0.20.
+- Stop invalidating the whole machine route immediately after opening a realtime terminal session, preventing the session lease from being closed during connection.
+- Avoid transient machine detail reloads from replacing an already open machine page during terminal startup.
+
 ## 1.0.20 - 2026-05-27
 
 ### Changed

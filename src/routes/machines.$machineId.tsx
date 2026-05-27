@@ -1171,9 +1171,16 @@ function RemoteTerminalLazySection({
 
   useEffect(() => {
     setEnabled(hasPendingTemplateTerminalLaunch(machineId));
+  }, [machineId]);
+
+  useEffect(() => {
+    if (enabled) {
+      return;
+    }
+
     setTemplates(initialTemplates);
     setTemplatesLoaded(initialTemplates.length > 0);
-  }, [initialTemplates, machineId]);
+  }, [enabled, initialTemplates]);
 
   useEffect(() => {
     if (!enabled || templatesLoaded || templatesLoading) {

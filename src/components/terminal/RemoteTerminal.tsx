@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { createPortal } from "react-dom";
 import { Plug2, PlugZap, X } from "lucide-react";
@@ -67,7 +67,6 @@ export function RemoteTerminal({
   machineStatus: "online" | "offline" | "warning";
   templates: RemoteTerminalTemplate[];
 }) {
-  const router = useRouter();
   const openSession = useServerFn(openRealtimeTerminalSessionAction);
   const startRealtimeTemplateExecution = useServerFn(startRealtimeTemplateExecutionAction);
   const verifyPolicyMfa = useServerFn(verifyMachinePolicyMfaAction);
@@ -416,7 +415,6 @@ export function RemoteTerminal({
         },
       });
       attachToSession(session);
-      void router.invalidate();
     } catch (error) {
       activeSessionIdRef.current = null;
       setConnecting(false);
@@ -492,7 +490,6 @@ export function RemoteTerminal({
           readyMessage: "\r\n[INFO] Tunel conectado. Preparando execucao do template...",
           openedMessage: "\r\n[INFO] Shell conectado. O comando do template foi iniciado.",
         });
-        void router.invalidate();
       } catch (error) {
         setConnecting(false);
         setConnected(false);
@@ -509,7 +506,6 @@ export function RemoteTerminal({
     connected,
     connecting,
     machineId,
-    router,
     startRealtimeTemplateExecution,
     terminalReady,
   ]);
