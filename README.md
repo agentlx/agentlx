@@ -329,7 +329,7 @@ O comando `start` sobe o servidor Node responsável por:
 A imagem pública recomendada para produção é versionada e deve ficar fixada no Compose:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v1.0.22
+image: ghcr.io/agentlx/agentlx:v1.0.22@sha256:5c63315dcbcdf75a7e04621a19bf759b2753b4ed2c799029dacea0c0f499b7f0
 ```
 
 Em produção, prefira fixar também o digest publicado da release:
