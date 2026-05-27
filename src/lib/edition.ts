@@ -1,4 +1,5 @@
 export const enterpriseFeatures = [
+  "security_monitoring",
   "advanced_audit",
   "recurring_jobs",
   "terminal_collaboration",
@@ -15,6 +16,7 @@ export const managedResourceKinds = ["machines", "templates", "groups"] as const
 export type ManagedResourceKind = (typeof managedResourceKinds)[number];
 
 export const enterpriseFeatureLabels: Record<EnterpriseFeature, string> = {
+  security_monitoring: "Monitoramento de seguranca",
   advanced_audit: "Auditoria avancada",
   recurring_jobs: "Execucoes recorrentes",
   terminal_collaboration: "Colaboracao em terminal",

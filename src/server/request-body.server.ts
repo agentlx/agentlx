@@ -2,6 +2,7 @@ import { ZodError, type z } from "zod";
 
 export const BODY_LIMITS = {
   json: 256 * 1024,
+  securityEvents: 512 * 1024,
   agentResult: 128 * 1024,
   profilePhoto: 6 * 1024 * 1024,
   terminalControl: 32 * 1024,

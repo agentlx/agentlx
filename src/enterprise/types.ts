@@ -9,6 +9,22 @@ import type {
   UpdateMachinePolicyInput,
 } from "@/lib/agentlx";
 import type {
+  AgentSecurityEventsIngestInput,
+  CreateSecurityAlertCommentInput,
+  SecurityAlertDetailView,
+  SecurityAlertCommentView,
+  SecurityAlertListInput,
+  SecurityAlertView,
+  SecurityEventListInput,
+  SecurityEventView,
+  SecurityListResponse,
+  SecurityPrincipal,
+  SecurityRuleListInput,
+  SecurityRuleView,
+  UpdateSecurityAlertStatusInput,
+  UpdateSecurityRuleInput,
+} from "@/lib/security-monitoring";
+import type {
   AgentLxEdition,
   EnterpriseFeature,
   EnterpriseLicenseState,
@@ -144,6 +160,70 @@ export type EnterpriseMachinePolicies = {
   ): Promise<void>;
 };
 
+export type EnterpriseAgentRuntimeExtensionFile = {
+  path: string;
+  body: string;
+  contentType?: string;
+};
+
+export type EnterpriseAgentRuntimeExtensions = {
+  listFiles():
+    | Promise<EnterpriseAgentRuntimeExtensionFile[]>
+    | EnterpriseAgentRuntimeExtensionFile[];
+};
+
+export type EnterpriseSecurityMonitoring = {
+  ingestAgentEvents(
+    input: {
+      agentId: string;
+      machineId: string;
+      payload: AgentSecurityEventsIngestInput;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<{ ok: true; accepted: number; alertCount: number }>;
+  listAlerts(
+    input: SecurityAlertListInput & { principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityListResponse<SecurityAlertView>>;
+  getAlert(
+    input: { alertId: string; principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityAlertDetailView>;
+  updateAlertStatus(
+    input: UpdateSecurityAlertStatusInput & {
+      alertId: string;
+      principal: SecurityPrincipal;
+      changedBy: string;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityAlertView>;
+  createAlertComment(
+    input: CreateSecurityAlertCommentInput & {
+      alertId: string;
+      principal: SecurityPrincipal;
+      createdBy: string;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityAlertCommentView>;
+  listEvents(
+    input: SecurityEventListInput & { principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityListResponse<SecurityEventView>>;
+  listRules(
+    input: SecurityRuleListInput & { principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityListResponse<SecurityRuleView>>;
+  updateRule(
+    input: UpdateSecurityRuleInput & {
+      ruleId: string;
+      principal: SecurityPrincipal;
+    },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityRuleView>;
+  runPeriodicJobs?(context: EnterpriseRuntimeContext): Promise<void>;
+  startBackgroundJobs?(context: EnterpriseRuntimeContext): void;
+};
+
 export type EnterpriseProvider = {
   edition: AgentLxEdition;
   hasFeature(feature: EnterpriseFeature): boolean | Promise<boolean>;
@@ -159,6 +239,8 @@ export type EnterpriseProvider = {
   recurringJobs?: EnterpriseRecurringJobs;
   terminalSessions?: EnterpriseTerminalSessions;
   machinePolicies?: EnterpriseMachinePolicies;
+  securityMonitoring?: EnterpriseSecurityMonitoring;
+  agentRuntimeExtensions?: EnterpriseAgentRuntimeExtensions;
 };
 
 export type { AgentLxEdition, EnterpriseFeature, EnterpriseLicenseState };

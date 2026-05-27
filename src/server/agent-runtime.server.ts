@@ -48,6 +48,21 @@ function contentTypeForRuntimePath(relativePath: string) {
   return "text/plain; charset=utf-8";
 }
 
+async function listEnterpriseRuntimeExtensionFiles() {
+  try {
+    const enterprise = await import("@agentlx/enterprise");
+    const files = await enterprise.getEnterpriseProvider().agentRuntimeExtensions?.listFiles();
+    return (files ?? []).map((file) => ({
+      ...file,
+      path: normalizeRuntimePath(file.path),
+      contentType: file.contentType ?? contentTypeForRuntimePath(file.path),
+    }));
+  } catch (error) {
+    console.warn("[agent-runtime] enterprise extensions unavailable", error);
+    return [];
+  }
+}
+
 async function collectRuntimeFilesFromDir(relativeDir: string): Promise<string[]> {
   const absoluteDir = path.join(AGENT_RUNTIME_ROOT, relativeDir);
   const entries = await readdir(absoluteDir, { withFileTypes: true });
@@ -74,7 +89,7 @@ async function collectRuntimeFilesFromDir(relativeDir: string): Promise<string[]
   return files;
 }
 
-export async function listAgentRuntimeFiles() {
+async function listBaseAgentRuntimeFiles() {
   const files: string[] = [...AGENT_RUNTIME_TOP_LEVEL_FILES];
 
   for (const relativeDir of AGENT_RUNTIME_DIRS) {
@@ -86,16 +101,33 @@ export async function listAgentRuntimeFiles() {
     .sort((left, right) => left.localeCompare(right, "en"));
 }
 
+export async function listAgentRuntimeFiles() {
+  const baseFiles = await listBaseAgentRuntimeFiles();
+  const extensionFiles = await listEnterpriseRuntimeExtensionFiles();
+  const baseFileSet = new Set(baseFiles);
+  const extensionPaths = extensionFiles
+    .map((item) => item.path)
+    .filter((item) => !baseFileSet.has(item));
+
+  return [...baseFiles, ...extensionPaths].sort((left, right) => left.localeCompare(right, "en"));
+}
+
 export async function getAgentRuntimeManifest(): Promise<AgentRuntimeManifest> {
   const files = await listAgentRuntimeFiles();
+  const extensionFiles = new Map(
+    (await listEnterpriseRuntimeExtensionFiles()).map((file) => [file.path, file]),
+  );
   const entries = await Promise.all(
     files.map(async (relativePath) => {
-      const body = await readFile(path.join(AGENT_RUNTIME_ROOT, relativePath));
+      const extensionFile = extensionFiles.get(relativePath);
+      const body = extensionFile
+        ? Buffer.from(extensionFile.body, "utf8")
+        : await readFile(path.join(AGENT_RUNTIME_ROOT, relativePath));
       return {
         path: relativePath,
         sha256: createHash("sha256").update(body).digest("hex"),
         size: body.byteLength,
-        contentType: contentTypeForRuntimePath(relativePath),
+        contentType: extensionFile?.contentType ?? contentTypeForRuntimePath(relativePath),
       } satisfies AgentRuntimeManifestEntry;
     }),
   );
@@ -112,6 +144,21 @@ export async function readAgentRuntimeFile(relativePath: string) {
   const files = await listAgentRuntimeFiles();
   if (!files.includes(normalizedPath)) {
     throw new Error("Arquivo de runtime nao encontrado.");
+  }
+
+  const baseFiles = new Set(await listBaseAgentRuntimeFiles());
+  if (!baseFiles.has(normalizedPath)) {
+    const extensionFile = (await listEnterpriseRuntimeExtensionFiles()).find(
+      (file) => file.path === normalizedPath,
+    );
+    if (!extensionFile) {
+      throw new Error("Arquivo de runtime nao encontrado.");
+    }
+    return {
+      path: normalizedPath,
+      body: extensionFile.body,
+      contentType: extensionFile.contentType ?? contentTypeForRuntimePath(normalizedPath),
+    };
   }
 
   return {

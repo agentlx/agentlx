@@ -19,6 +19,7 @@ from .config import (
     load_config,
 )
 from .executor import execute_queued_execution, uninstall_local_agent
+from .extensions import load_enterprise_extensions
 from .inventory import SnapshotCollector
 from .system import (
     ensure_single_instance,
@@ -92,7 +93,9 @@ def run_loop(config: dict[str, Any], collector: SnapshotCollector) -> None:
 
     wake_event = threading.Event()
     tunnel = RealtimeTunnelClient(config, wake_event=wake_event)
+    extensions = load_enterprise_extensions(config)
     tunnel.start()
+    extensions.start()
     next_heartbeat_at = 0.0
     print(
         f"Loop iniciado com poll={poll_interval}s heartbeat={heartbeat_interval}s "
@@ -134,6 +137,7 @@ def run_loop(config: dict[str, Any], collector: SnapshotCollector) -> None:
             wake_event.wait(timeout=poll_interval)
             wake_event.clear()
     finally:
+        extensions.stop()
         tunnel.stop()
 
 

@@ -613,6 +613,8 @@ export async function ensureDatabaseReady() {
       await seedDemoData();
       await runMaintenanceCleanup();
       startPeriodicMaintenance();
+      const { startEnterpriseBackgroundJobs } = await import("./edition.server");
+      await startEnterpriseBackgroundJobs();
     })();
   }
   return readyPromise;

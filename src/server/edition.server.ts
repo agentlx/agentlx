@@ -17,6 +17,16 @@ import type {
   RecurringTemplateScheduleInput,
   UpdateMachinePolicyInput,
 } from "@/lib/agentlx";
+import type {
+  AgentSecurityEventsIngestInput,
+  CreateSecurityAlertCommentInput,
+  SecurityAlertListInput,
+  SecurityEventListInput,
+  SecurityPrincipal,
+  SecurityRuleListInput,
+  UpdateSecurityAlertStatusInput,
+  UpdateSecurityRuleInput,
+} from "@/lib/security-monitoring";
 import type { EnterpriseDbClient, EnterpriseRuntimeContext } from "@/enterprise/types";
 import { appendAuditLog } from "./audit.server";
 import { dbQuery, withTransaction } from "./db.server";
@@ -256,6 +266,125 @@ export async function assertEnterpriseMachinePolicyAllowed(
   }
 
   await provider.machinePolicies.assertAllowed(input, enterpriseRuntimeContext(client));
+}
+
+export async function hasSecurityMonitoringFeature() {
+  return hasEnterpriseFeature("security_monitoring");
+}
+
+export async function ingestEnterpriseSecurityEvents(input: {
+  agentId: string;
+  machineId: string;
+  payload: AgentSecurityEventsIngestInput;
+}) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.ingestAgentEvents(input, enterpriseRuntimeContext());
+}
+
+export async function listEnterpriseSecurityAlerts(
+  input: SecurityAlertListInput & { principal: SecurityPrincipal },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.listAlerts(input, enterpriseRuntimeContext());
+}
+
+export async function getEnterpriseSecurityAlert(input: {
+  alertId: string;
+  principal: SecurityPrincipal;
+}) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.getAlert(input, enterpriseRuntimeContext());
+}
+
+export async function updateEnterpriseSecurityAlertStatus(
+  input: UpdateSecurityAlertStatusInput & {
+    alertId: string;
+    principal: SecurityPrincipal;
+    changedBy: string;
+  },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.updateAlertStatus(input, enterpriseRuntimeContext());
+}
+
+export async function createEnterpriseSecurityAlertComment(
+  input: CreateSecurityAlertCommentInput & {
+    alertId: string;
+    principal: SecurityPrincipal;
+    createdBy: string;
+  },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.createAlertComment(input, enterpriseRuntimeContext());
+}
+
+export async function listEnterpriseSecurityEvents(
+  input: SecurityEventListInput & { principal: SecurityPrincipal },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.listEvents(input, enterpriseRuntimeContext());
+}
+
+export async function listEnterpriseSecurityRules(
+  input: SecurityRuleListInput & { principal: SecurityPrincipal },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.listRules(input, enterpriseRuntimeContext());
+}
+
+export async function updateEnterpriseSecurityRule(
+  input: UpdateSecurityRuleInput & {
+    ruleId: string;
+    principal: SecurityPrincipal;
+  },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.updateRule(input, enterpriseRuntimeContext());
+}
+
+export async function startEnterpriseBackgroundJobs() {
+  const provider = await loadProvider();
+  provider.securityMonitoring?.startBackgroundJobs?.(enterpriseRuntimeContext());
 }
 
 function enterpriseRuntimeContext(client?: EnterpriseDbClient): EnterpriseRuntimeContext {
