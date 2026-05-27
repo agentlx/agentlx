@@ -22,6 +22,7 @@
   MachineControlAction,
   MachineControlActionInput,
   MachineDetailView,
+  MachineOptionView,
   MachineStatus,
   MachineView,
   PendingMachineEnrollmentCreateView,
@@ -95,6 +96,9 @@ type ExecutionFeedInput = {
   auditsCursor?: string | null;
   limit?: number;
   auditsLimit?: number;
+  includeExecutions?: boolean;
+  includeAudits?: boolean;
+  includeRecurringSchedules?: boolean;
 };
 
 type CursorKind = "machines" | "executions" | "audits";
@@ -431,6 +435,26 @@ function toMachineView(
     canDelete: false,
     scheduledTaskLimit: machine.scheduled_task_limit,
     canEditScheduledTaskLimit: options.canEditScheduledTaskLimit ?? false,
+  };
+}
+
+function toMachineOptionView(machine: MachineRow): MachineOptionView {
+  const lastSeenAt = timestampText(machine.last_seen_at);
+  return {
+    id: machine.id,
+    hostname: machine.hostname,
+    agentName: machine.agent_label,
+    ip: machine.ip,
+    os: machine.os,
+    distroId: machine.distro_id,
+    distroFamily: machine.distro_family,
+    status: deriveMachineStatus({
+      lastSeenAt,
+      cpuPercent: machine.cpu_percent,
+      diskPercent: machine.disk_percent,
+      ramUsedGb: machine.ram_used_gb,
+      ramTotalGb: machine.ram_total_gb,
+    }),
   };
 }
 
@@ -1113,16 +1137,16 @@ async function loadDashboardMachines(viewerUserId: string, limit = 10) {
         m.os,
         m.distro_id,
         m.distro_family,
-        m.distro_version,
-        m.kernel,
-        m.arch,
-        m.location,
-        m.uptime_sec,
+        '' AS distro_version,
+        '' AS kernel,
+        '' AS arch,
+        '' AS location,
+        0 AS uptime_sec,
         m.cpu_percent,
         m.ram_used_gb,
         m.ram_total_gb,
         m.disk_percent,
-        m.scheduled_task_limit,
+        0 AS scheduled_task_limit,
         m.last_seen_at,
         '{}'::text[] AS services
       FROM machines m
@@ -1149,16 +1173,16 @@ async function loadMachineOptions(viewerUserId: string, limit = MACHINE_LIST_LIM
         m.os,
         m.distro_id,
         m.distro_family,
-        m.distro_version,
-        m.kernel,
-        m.arch,
-        m.location,
-        m.uptime_sec,
+        '' AS distro_version,
+        '' AS kernel,
+        '' AS arch,
+        '' AS location,
+        0 AS uptime_sec,
         m.cpu_percent,
         m.ram_used_gb,
         m.ram_total_gb,
         m.disk_percent,
-        m.scheduled_task_limit,
+        0 AS scheduled_task_limit,
         m.last_seen_at,
         '{}'::text[] AS services
       FROM machines m
@@ -2037,14 +2061,12 @@ export async function getMachineDetailView(
     canAccessGroupsScreen: boolean;
   },
 ): Promise<MachineDetailView | null> {
-  const [machines, logs, templates, canEditScheduledTaskLimit, canUseHighScaleLimits] =
-    await Promise.all([
-      loadMachines(machineId, viewer.userId),
-      loadExecutions(machineId, undefined, viewer.userId, MACHINE_DETAIL_EXECUTION_LIMIT),
-      loadTemplates(),
-      canEditMachineScheduledTaskLimit(machineId, viewer.userId),
-      hasEnterpriseFeature("high_scale_limits"),
-    ]);
+  const [machines, logs, canEditScheduledTaskLimit, canUseHighScaleLimits] = await Promise.all([
+    loadMachines(machineId, viewer.userId),
+    loadExecutions(machineId, undefined, viewer.userId, MACHINE_DETAIL_EXECUTION_LIMIT),
+    canEditMachineScheduledTaskLimit(machineId, viewer.userId),
+    hasEnterpriseFeature("high_scale_limits"),
+  ]);
 
   const machine = machines[0];
   if (!machine) {
@@ -2056,7 +2078,7 @@ export async function getMachineDetailView(
       canEditScheduledTaskLimit: canEditScheduledTaskLimit && canUseHighScaleLimits,
     }),
     logs: logs.map(toExecutionLogView),
-    templates: templates.map(toTemplateView),
+    templates: [],
     groupAccess: await buildMachineGroupAccess(machineId, viewer),
     machineAccessMfa: await getEnterpriseMachinePolicyMfaRequirement({
       machineId,
@@ -2067,18 +2089,33 @@ export async function getMachineDetailView(
 }
 
 export async function getTemplateCatalogView(viewerUserId: string): Promise<TemplateCatalogView> {
-  const [templates, machines, recurringJobs] = await Promise.all([
+  const [templates, recurringJobs] = await Promise.all([
     loadTemplates(),
-    loadMachineOptions(viewerUserId, MACHINE_LIST_LIMIT),
     hasEnterpriseFeature("recurring_jobs"),
   ]);
   return {
     templates: templates.map(toTemplateView),
-    machines: machines.map((machine) => toMachineView(machine)),
+    machines: [],
     enterpriseFeatures: {
       recurringJobs,
     },
   };
+}
+
+export async function getMachineTerminalTemplatesView(
+  machineId: string,
+  viewerUserId: string,
+): Promise<ActionTemplateView[]> {
+  await assertViewerCanAccessMachine(machineId, viewerUserId);
+  const templates = await loadTemplates();
+  return templates.map(toTemplateView);
+}
+
+export async function getTemplateMachineOptionsView(
+  viewerUserId: string,
+): Promise<MachineOptionView[]> {
+  const machines = await loadMachineOptions(viewerUserId, MACHINE_LIST_LIMIT);
+  return machines.map(toMachineOptionView);
 }
 
 export async function getExecutionLogFeed(
@@ -2087,13 +2124,22 @@ export async function getExecutionLogFeed(
 ): Promise<ExecutionFeedView> {
   const limit = normalizePageLimit(input.limit);
   const auditsLimit = normalizePageLimit(input.auditsLimit);
+  const includeExecutions = input.includeExecutions ?? true;
+  const includeAudits = input.includeAudits ?? true;
+  const includeRecurringSchedules = input.includeRecurringSchedules ?? true;
   const [executions, recurringSchedules, audits] = await Promise.all([
-    loadExecutions(undefined, undefined, viewerUserId, limit + 1, input.executionsCursor),
-    listEnterpriseRecurringSchedules({
-      viewerUserId,
-      limit: DEFAULT_LIST_LIMIT,
-    }),
-    loadAuditLogs(auditsLimit + 1, viewerUserId, input.auditsCursor),
+    includeExecutions
+      ? loadExecutions(undefined, undefined, viewerUserId, limit + 1, input.executionsCursor)
+      : Promise.resolve([] as ExecutionRow[]),
+    includeRecurringSchedules
+      ? listEnterpriseRecurringSchedules({
+          viewerUserId,
+          limit: DEFAULT_LIST_LIMIT,
+        })
+      : Promise.resolve([] as RecurringScheduleView[]),
+    includeAudits
+      ? loadAuditLogs(auditsLimit + 1, viewerUserId, input.auditsCursor)
+      : Promise.resolve([] as AuditRow[]),
   ]);
   const executionRows = executions.slice(0, limit);
   const auditRows = audits.slice(0, auditsLimit);

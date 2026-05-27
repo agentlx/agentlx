@@ -43,10 +43,12 @@ import type {
 } from "@/lib/agentlx";
 import { MAX_MACHINE_SCHEDULED_TASK_LIMIT } from "@/lib/agentlx";
 import { APP_NAME } from "@/lib/brand";
+import { isDocumentVisible } from "@/lib/browser-visibility";
 import {
   assignMachineGroupsAction,
   getExecutionDetailData,
   getMachineDetailData,
+  getMachineTerminalTemplatesAction,
   getRealtimeTerminalPresenceAction,
   queueMachineControlAction,
   queueMachineSyncAction,
@@ -154,6 +156,9 @@ function MachineDetail() {
     }
 
     const interval = window.setInterval(() => {
+      if (!isDocumentVisible()) {
+        return;
+      }
       void getExecution({ data: { executionId: syncExecutionId } })
         .then(async (execution) => {
           if (!execution) {
@@ -194,9 +199,8 @@ function MachineDetail() {
         },
       });
       setMachine((current) => ({ ...current, agentName: result.agentName }));
-      await router.invalidate();
     },
-    [machine.id, router, updateMachineAgentName],
+    [machine.id, updateMachineAgentName],
   );
 
   const saveMachineScheduledTaskLimit = useCallback(
@@ -211,9 +215,8 @@ function MachineDetail() {
         ...current,
         scheduledTaskLimit: result.scheduledTaskLimit,
       }));
-      await router.invalidate();
     },
-    [machine.id, router, updateMachineScheduledTaskLimit],
+    [machine.id, updateMachineScheduledTaskLimit],
   );
 
   const syncCooldownSeconds = Math.max(0, Math.ceil((syncCooldownUntil - syncNow) / 1000));
@@ -1048,6 +1051,9 @@ function TunnelPresenceButton({ machineId }: { machineId: string }) {
     }
 
     const interval = window.setInterval(() => {
+      if (!isDocumentVisible()) {
+        return;
+      }
       const eventSource = eventSourceRef.current;
       const streamIsOpen = eventSource?.readyState === EventSource.OPEN;
       const realtimeIsFresh = Date.now() - lastRealtimePresenceAtRef.current < 10_000;
@@ -1151,23 +1157,41 @@ function TunnelPresenceButton({ machineId }: { machineId: string }) {
 function RemoteTerminalLazySection({
   machineId,
   machineStatus,
-  templates,
+  templates: initialTemplates,
 }: {
   machineId: string;
   machineStatus: "online" | "offline" | "warning";
-  templates: Array<{
-    id: string;
-    name: string;
-    description: string;
-    command: string;
-    risk: "low" | "medium" | "high";
-  }>;
+  templates: MachineDetailView["templates"];
 }) {
   const [enabled, setEnabled] = useState(() => hasPendingTemplateTerminalLaunch(machineId));
+  const loadTerminalTemplates = useServerFn(getMachineTerminalTemplatesAction);
+  const [templates, setTemplates] = useState(initialTemplates);
+  const [templatesLoaded, setTemplatesLoaded] = useState(initialTemplates.length > 0);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
 
   useEffect(() => {
     setEnabled(hasPendingTemplateTerminalLaunch(machineId));
-  }, [machineId]);
+    setTemplates(initialTemplates);
+    setTemplatesLoaded(initialTemplates.length > 0);
+  }, [initialTemplates, machineId]);
+
+  useEffect(() => {
+    if (!enabled || templatesLoaded || templatesLoading) {
+      return;
+    }
+
+    setTemplatesLoading(true);
+    void loadTerminalTemplates({ data: { machineId } })
+      .then((nextTemplates) => {
+        setTemplates(nextTemplates);
+        setTemplatesLoaded(true);
+      })
+      .catch(() => {
+        setTemplatesLoaded(true);
+        toast.error("Nao foi possivel carregar templates do terminal.");
+      })
+      .finally(() => setTemplatesLoading(false));
+  }, [enabled, loadTerminalTemplates, machineId, templatesLoaded, templatesLoading]);
 
   if (enabled) {
     return (
@@ -1709,6 +1733,9 @@ function MachineControlModal({
     }
 
     const interval = setInterval(() => {
+      if (!isDocumentVisible()) {
+        return;
+      }
       void getExecution({ data: { executionId: execution.id } }).then((next) => {
         if (!next) {
           return;

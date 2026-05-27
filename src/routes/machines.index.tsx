@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createPortal } from "react-dom";
 import { Copy, Plus, Search, Trash2, X } from "lucide-react";
@@ -10,6 +10,7 @@ import type {
   PendingMachineEnrollmentCreateView,
 } from "@/lib/agentlx";
 import { APP_NAME } from "@/lib/brand";
+import { isDocumentVisible } from "@/lib/browser-visibility";
 import {
   createMachineEnrollmentCommandAction,
   createPendingMachineEnrollmentAction,
@@ -73,6 +74,7 @@ function MachinesList() {
   const [nowTimestamp, setNowTimestamp] = useState(Date.now());
   const [page, setPage] = useState(1);
   const [loadingMoreMachines, setLoadingMoreMachines] = useState(false);
+  const skippedInitialRefreshRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,9 +93,16 @@ function MachinesList() {
       }
     };
 
-    void refresh();
+    if (skippedInitialRefreshRef.current) {
+      void refresh();
+    } else {
+      skippedInitialRefreshRef.current = true;
+    }
 
     const intervalId = window.setInterval(() => {
+      if (!isDocumentVisible()) {
+        return;
+      }
       void refresh();
     }, 15000);
 

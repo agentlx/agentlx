@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { createPortal } from "react-dom";
 import { CalendarClock, Pencil, Play, Plus, Search, ShieldAlert, Trash2, X } from "lucide-react";
@@ -10,14 +10,17 @@ import {
   MAX_RECURRING_INTERVAL_DAYS,
   type ActionRisk,
   type ActionTemplateView,
+  type MachineOptionView,
   type RealtimeTerminalSessionView,
 } from "@/lib/agentlx";
 import { APP_NAME } from "@/lib/brand";
+import { isDocumentVisible } from "@/lib/browser-visibility";
 import {
   createTemplateAction,
   createRecurringTemplateScheduleAction,
   deleteTemplateAction,
   getTemplateCatalogData,
+  getTemplateMachineOptionsAction,
   queueTemplateExecutionAction,
   updateTemplateAction,
 } from "@/lib/panel-api";
@@ -100,8 +103,9 @@ function Templates() {
   const updateTemplate = useServerFn(updateTemplateAction);
   const queueTemplateExecution = useServerFn(queueTemplateExecutionAction);
   const createRecurringTemplateSchedule = useServerFn(createRecurringTemplateScheduleAction);
+  const getTemplateMachineOptions = useServerFn(getTemplateMachineOptionsAction);
   const navigate = useNavigate();
-  const { templates, machines, enterpriseFeatures } = Route.useLoaderData();
+  const { templates, machines: initialMachines, enterpriseFeatures } = Route.useLoaderData();
   const [formMode, setFormMode] = useState<TemplateFormMode | null>(null);
   const [createState, setCreateState] = useState<CreateFormState>(() => emptyCreateState());
   const [savedTemplateForExecution, setSavedTemplateForExecution] =
@@ -123,6 +127,10 @@ function Templates() {
   const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [scheduleStartMin, setScheduleStartMin] = useState(() => getNextScheduleStartMin());
+  const [machines, setMachines] = useState<MachineOptionView[]>(initialMachines);
+  const [machinesLoaded, setMachinesLoaded] = useState(initialMachines.length > 0);
+  const [loadingMachines, setLoadingMachines] = useState(false);
+  const [machinesLoadFailed, setMachinesLoadFailed] = useState(false);
 
   const sortedTemplates = useMemo(
     () =>
@@ -161,6 +169,28 @@ function Templates() {
   const selectedMachine =
     availableMachines.find((machine) => machine.id === selectedMachineId) ?? null;
 
+  const ensureMachinesLoaded = useCallback(
+    async (force = false) => {
+      if (machinesLoaded || loadingMachines || (!force && machinesLoadFailed)) {
+        return;
+      }
+
+      setLoadingMachines(true);
+      setMachinesLoadFailed(false);
+      try {
+        const nextMachines = await getTemplateMachineOptions();
+        setMachines(nextMachines);
+        setMachinesLoaded(true);
+      } catch (error) {
+        setMachinesLoadFailed(true);
+        toast.error(error instanceof Error ? error.message : "Nao foi possivel carregar maquinas.");
+      } finally {
+        setLoadingMachines(false);
+      }
+    },
+    [getTemplateMachineOptions, loadingMachines, machinesLoadFailed, machinesLoaded],
+  );
+
   useEffect(() => {
     if (!executeTemplate) {
       setSelectedMachineId("");
@@ -172,10 +202,12 @@ function Templates() {
       return;
     }
 
+    void ensureMachinesLoaded();
+
     const nextId = availableMachines[0]?.id ?? "";
     setSelectedMachineId(nextId);
     setPendingMachineId(nextId);
-  }, [executeTemplate, availableMachines]);
+  }, [executeTemplate, availableMachines, ensureMachinesLoaded]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -185,6 +217,9 @@ function Templates() {
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
+      if (!isDocumentVisible()) {
+        return;
+      }
       setScheduleStartMin(getNextScheduleStartMin());
     }, 30_000);
 
@@ -733,12 +768,14 @@ function Templates() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => {
+                      void ensureMachinesLoaded(true);
                       setPendingMachineId(selectedMachineId);
                       setMachineSelectorOpen(true);
                     }}
+                    disabled={loadingMachines}
                     className="rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-secondary"
                   >
-                    Selecionar maquina
+                    {loadingMachines ? "Carregando..." : "Selecionar maquina"}
                   </button>
                   {selectedMachine ? (
                     <div className="flex min-w-0 items-center gap-2 rounded border border-border bg-background px-3 py-2 text-sm">
@@ -877,6 +914,7 @@ function Templates() {
                 onClick={() => void submitExecution()}
                 disabled={
                   executing ||
+                  loadingMachines ||
                   !selectedMachineId ||
                   (scheduleMode === "scheduled" && !scheduledFor) ||
                   (scheduleMode === "recurring" && (!scheduledFor || !recurringIntervalDays))
@@ -936,7 +974,11 @@ function Templates() {
 
             <div className="space-y-4 p-5">
               <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
-                {availableMachines.length === 0 ? (
+                {loadingMachines ? (
+                  <div className="rounded-lg border border-border bg-background px-4 py-4 text-sm text-muted-foreground">
+                    Carregando maquinas...
+                  </div>
+                ) : availableMachines.length === 0 ? (
                   <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-4 text-sm text-warning">
                     Nenhuma maquina registrada disponivel.
                   </div>

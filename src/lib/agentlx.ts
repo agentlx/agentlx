@@ -112,6 +112,9 @@ export const executionLogPageInputSchema = z.object({
   auditsCursor: nullableCursorSchema,
   limit: pageLimitSchema,
   auditsLimit: pageLimitSchema,
+  includeExecutions: z.boolean().default(true),
+  includeAudits: z.boolean().default(true),
+  includeRecurringSchedules: z.boolean().default(true),
 });
 
 export type CursorPageInfo = {
@@ -423,6 +426,11 @@ export type MachineView = {
   canEditScheduledTaskLimit: boolean;
 };
 
+export type MachineOptionView = Pick<
+  MachineView,
+  "id" | "hostname" | "agentName" | "status" | "ip" | "os" | "distroId" | "distroFamily"
+>;
+
 export type PendingMachineEnrollmentView = {
   id: string;
   token: string;
@@ -583,7 +591,7 @@ export type AuditLogView = {
 
 export type TemplateCatalogView = {
   templates: ActionTemplateView[];
-  machines: MachineView[];
+  machines: MachineOptionView[];
   enterpriseFeatures: {
     recurringJobs: boolean;
   };

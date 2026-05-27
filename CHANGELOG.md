@@ -4,6 +4,17 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.20 - 2026-05-27
+
+### Changed
+
+- Avoid duplicate Machines list refresh on initial page load and pause recurring frontend refreshes while the browser tab is hidden.
+- Load remote terminal quick-action templates only when the terminal section is opened.
+- Load template execution machine options on demand instead of bundling them in the Templates route loader.
+- Reduce execution/audit log pagination payloads by fetching only the feed being expanded.
+- Serve static JavaScript, CSS and text assets with Brotli or gzip compression when supported by the client.
+- Keep hot database index changes measurement-driven; current production checks did not justify a new index migration.
+
 ## 1.0.19 - 2026-05-27
 
 ### Changed

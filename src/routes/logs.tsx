@@ -186,7 +186,12 @@ function Logs() {
     setLoadingMoreEvents(true);
     try {
       const next = await loadExecutionLogsPage({
-        data: { executionsCursor: cursor, auditsCursor: null },
+        data: {
+          executionsCursor: cursor,
+          auditsCursor: null,
+          includeAudits: false,
+          includeRecurringSchedules: false,
+        },
       });
       setFeedData((current) => ({
         ...current,
@@ -226,7 +231,12 @@ function Logs() {
     setLoadingMoreAudits(true);
     try {
       const next = await loadExecutionLogsPage({
-        data: { executionsCursor: null, auditsCursor: cursor },
+        data: {
+          executionsCursor: null,
+          auditsCursor: cursor,
+          includeExecutions: false,
+          includeRecurringSchedules: false,
+        },
       });
       setFeedData((current) => ({
         ...current,

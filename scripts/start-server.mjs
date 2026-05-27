@@ -8,6 +8,7 @@ import { extname, normalize, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
+import { createBrotliCompress, createGzip, constants as zlibConstants } from "node:zlib";
 
 const host = process.env.HOST || "0.0.0.0";
 const port = Number(process.env.PORT || 3000);
@@ -138,6 +139,7 @@ const contentTypes = {
 };
 
 const staticExtensions = new Set(Object.keys(contentTypes));
+const compressibleExtensions = new Set([".css", ".js", ".mjs", ".json", ".svg", ".txt"]);
 const appOrigin = (process.env.APP_ORIGIN || "http://localhost:3000").trim();
 const trustProxy = /^true$/i.test(process.env.AGENTLX_TRUST_PROXY || "");
 
@@ -247,6 +249,35 @@ function isStaticAssetRequest(pathname) {
   );
 }
 
+function preferredCompression(req, extension) {
+  if (!compressibleExtensions.has(extension)) {
+    return null;
+  }
+
+  const acceptEncoding = firstHeaderValue(req.headers["accept-encoding"]).toLowerCase();
+  if (acceptEncoding.includes("br")) {
+    return "br";
+  }
+  if (acceptEncoding.includes("gzip")) {
+    return "gzip";
+  }
+  return null;
+}
+
+function createCompressionStream(encoding) {
+  if (encoding === "br") {
+    return createBrotliCompress({
+      params: {
+        [zlibConstants.BROTLI_PARAM_QUALITY]: 5,
+      },
+    });
+  }
+  if (encoding === "gzip") {
+    return createGzip({ level: 6 });
+  }
+  return null;
+}
+
 async function tryServeStaticAsset(req, res) {
   const detectedRequest = detectRequestOrigin(req);
   const requestUrl = new URL(req.url || "/", detectedRequest.origin);
@@ -293,6 +324,20 @@ async function tryServeStaticAsset(req, res) {
   res.setHeader("content-type", contentType);
   if (extension === ".css" || extension === ".js" || extension === ".mjs") {
     res.setHeader("cache-control", "public, max-age=31536000, immutable");
+  }
+
+  if (req.method === "HEAD") {
+    res.end();
+    return true;
+  }
+
+  const encoding = preferredCompression(req, extension);
+  const compressionStream = createCompressionStream(encoding);
+  if (encoding && compressionStream) {
+    res.setHeader("content-encoding", encoding);
+    res.setHeader("vary", "Accept-Encoding");
+    await pipeline(createReadStream(assetPath), compressionStream, res);
+    return true;
   }
 
   await pipeline(createReadStream(assetPath), res);

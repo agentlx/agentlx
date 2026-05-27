@@ -116,6 +116,15 @@ export const getRealtimeTerminalPresenceAction = createServerFn({ method: "GET" 
     return getRealtimeTerminalPresence(data.machineId);
   });
 
+export const getMachineTerminalTemplatesAction = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => machineLookupSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("machines");
+    const { getMachineTerminalTemplatesView } = await import("@/server/panel.server");
+    return getMachineTerminalTemplatesView(data.machineId, viewer.id);
+  });
+
 export const getMachineGroupsData = createServerFn({ method: "GET" }).handler(async () => {
   const { requireScreenAccess } = await import("@/server/auth.server");
   await requireScreenAccess("groups");
@@ -149,6 +158,15 @@ export const getTemplateCatalogData = createServerFn({ method: "GET" }).handler(
   const { getTemplateCatalogView } = await import("@/server/panel.server");
   return getTemplateCatalogView(viewer.id);
 });
+
+export const getTemplateMachineOptionsAction = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("templates");
+    const { getTemplateMachineOptionsView } = await import("@/server/panel.server");
+    return getTemplateMachineOptionsView(viewer.id);
+  },
+);
 
 export const getExecutionLogsData = createServerFn({ method: "GET" }).handler(async () => {
   const { requireScreenAccess } = await import("@/server/auth.server");
