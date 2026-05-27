@@ -14,6 +14,7 @@ import { deriveMachineStatus } from "@/lib/formatting";
 import { appendAuditLog } from "./audit.server";
 import { dbQuery, withTransaction } from "./db.server";
 import {
+  assertEnterpriseMachinePolicyAllowed,
   assertEnterpriseResourceCanCreate,
   materializeEnterpriseRecurringExecutions,
 } from "./edition.server";
@@ -104,6 +105,9 @@ type ExecutionRow = {
   machine_id: string;
   template_id: string | null;
   template_name: string;
+  requested_by: string;
+  requested_by_user_id: string | null;
+  template_risk: "low" | "medium" | "high" | null;
   command: string;
   command_encrypted: string;
   schedule_id: string | null;
@@ -1114,6 +1118,22 @@ export async function pollPendingExecutions(
           execution.machine_id,
           execution.template_id,
           execution.template_name,
+          execution.requested_by,
+          COALESCE(
+            execution.requested_by_user_id,
+            (
+              SELECT users.id
+              FROM users
+              WHERE LOWER(users.email) = LOWER(execution.requested_by)
+              LIMIT 1
+            )
+          ) AS requested_by_user_id,
+          (
+            SELECT template.risk
+            FROM action_templates template
+            WHERE template.id = execution.template_id
+            LIMIT 1
+          ) AS template_risk,
           execution.command,
           execution.command_encrypted,
           execution.schedule_id,
@@ -1133,7 +1153,57 @@ export async function pollPendingExecutions(
       [agent.machine_id, input.limit, scheduledDispatchLimit, now],
     );
 
+    const allowedExecutions: ExecutionRow[] = [];
     for (const execution of result.rows) {
+      if (execution.execution_kind === "template") {
+        const userId = execution.requested_by_user_id;
+        try {
+          await assertEnterpriseMachinePolicyAllowed(
+            {
+              machineId: execution.machine_id,
+              userId: userId ?? "",
+              action: "template_execution",
+              templateRisk: execution.template_risk ?? "high",
+            },
+            { query: (text, params) => client.query(text, params) },
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Execucao bloqueada por politica de maquinas.";
+          await client.query(
+            `
+              UPDATE action_executions
+              SET
+                status = 'cancelled',
+                finished_at = $2,
+                error_output = CASE
+                  WHEN COALESCE(error_output, '') = '' THEN $3
+                  ELSE error_output || CHR(10) || $3
+                END
+              WHERE id = $1
+            `,
+            [execution.id, now, message],
+          );
+          await appendAgentAuditLog(client, {
+            actorType: "system",
+            actorId: "api",
+            action: "execution.policy_blocked",
+            machineId: execution.machine_id,
+            executionId: execution.id,
+            message,
+            createdAt: now,
+            severity: "warn",
+            metadata: {
+              alert: true,
+              templateId: execution.template_id,
+              templateRisk: execution.template_risk ?? "high",
+              requestedBy: execution.requested_by,
+            },
+          });
+          continue;
+        }
+      }
+
       await appendAgentAuditLog(client, {
         actorType: "system",
         actorId: "api",
@@ -1144,10 +1214,11 @@ export async function pollPendingExecutions(
         createdAt: now,
         severity: "notice",
       });
+      allowedExecutions.push(execution);
     }
 
     return {
-      executions: result.rows.map((execution: ExecutionRow) => {
+      executions: allowedExecutions.map((execution: ExecutionRow) => {
         const resolvedCommand = resolveExecutionCommand(
           execution.command,
           execution.command_encrypted || null,

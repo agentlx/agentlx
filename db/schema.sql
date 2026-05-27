@@ -146,7 +146,8 @@ CREATE TABLE IF NOT EXISTS action_executions (
   duration_ms INTEGER NOT NULL DEFAULT 0,
   exit_code INTEGER,
   output TEXT NOT NULL DEFAULT '',
-  error_output TEXT NOT NULL DEFAULT ''
+  error_output TEXT NOT NULL DEFAULT '',
+  requested_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 
 ALTER TABLE action_executions
@@ -287,6 +288,7 @@ CREATE TABLE IF NOT EXISTS action_schedules (
   interval_hours INTEGER NOT NULL CHECK (interval_hours >= 1 AND interval_hours <= 2400000),
   status TEXT NOT NULL CHECK (status IN ('active', 'paused', 'cancelled')),
   requested_by TEXT NOT NULL,
+  requested_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   starts_at TEXT NOT NULL,
@@ -302,8 +304,20 @@ ALTER TABLE action_executions
 ALTER TABLE action_executions
   ADD COLUMN IF NOT EXISTS schedule_run_at TEXT;
 
+ALTER TABLE action_executions
+  ADD COLUMN IF NOT EXISTS requested_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE action_schedules
+  ADD COLUMN IF NOT EXISTS requested_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+
 CREATE INDEX IF NOT EXISTS idx_action_schedules_machine_due
   ON action_schedules(machine_id, status, next_run_at);
+
+CREATE INDEX IF NOT EXISTS idx_action_executions_requested_by_user
+  ON action_executions(requested_by_user_id);
+
+CREATE INDEX IF NOT EXISTS idx_action_schedules_requested_by_user
+  ON action_schedules(requested_by_user_id);
 
 CREATE INDEX IF NOT EXISTS idx_action_executions_schedule_id
   ON action_executions(schedule_id, requested_at DESC);

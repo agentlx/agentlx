@@ -2684,6 +2684,19 @@ function resolveAvailableAt(scheduledFor?: string) {
 export async function createRecurringTemplateSchedule(
   input: RecurringTemplateScheduleInput & { requestedByUserId: string },
 ): Promise<RecurringScheduleView> {
+  const template = await dbQuery<{ risk: "low" | "medium" | "high" }>(
+    "SELECT risk FROM action_templates WHERE id = $1 AND enabled = 1 LIMIT 1",
+    [input.templateId],
+  );
+  if (template.rows[0]) {
+    await assertEnterpriseMachinePolicyAllowed({
+      machineId: input.machineId,
+      userId: input.requestedByUserId,
+      action: "template_execution",
+      templateRisk: template.rows[0].risk,
+    });
+  }
+
   return createEnterpriseRecurringTemplateSchedule(input);
 }
 
@@ -2752,12 +2765,12 @@ export async function queueTemplateExecution(
         INSERT INTO action_executions (
           id, machine_id, machine_hostname, agent_id, template_id, template_name, service, command,
           command_encrypted, execution_kind, status, requested_by, requested_at, available_at,
-          dispatched_at, started_at, finished_at, timeout_sec, duration_ms, exit_code, output,
-          error_output
+          requested_by_user_id, dispatched_at, started_at, finished_at, timeout_sec, duration_ms,
+          exit_code, output, error_output
         )
         VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, 'template', 'queued',
-          $10, $11, $12, NULL, NULL, NULL, 120, 0, NULL, '', ''
+          $10, $11, $12, $13, NULL, NULL, NULL, 120, 0, NULL, '', ''
         )
       `,
       [
@@ -2773,6 +2786,7 @@ export async function queueTemplateExecution(
         input.requestedBy,
         requestedAt,
         availableAt,
+        input.requestedByUserId,
       ],
     );
 
@@ -2879,12 +2893,12 @@ export async function startRealtimeTemplateExecution(
         INSERT INTO action_executions (
           id, machine_id, machine_hostname, agent_id, template_id, template_name, service, command,
           command_encrypted, execution_kind, status, requested_by, requested_at, available_at,
-          dispatched_at, started_at, finished_at, timeout_sec, duration_ms, exit_code, output,
-          error_output
+          requested_by_user_id, dispatched_at, started_at, finished_at, timeout_sec, duration_ms,
+          exit_code, output, error_output
         )
         VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, 'template', 'running',
-          $10, $11, $11, $11, $11, NULL, 120, 0, NULL, '', ''
+          $10, $11, $11, $12, $11, $11, NULL, 120, 0, NULL, '', ''
         )
       `,
       [
@@ -2899,6 +2913,7 @@ export async function startRealtimeTemplateExecution(
         protectedCommand.encryptedCommand,
         input.requestedBy,
         requestedAt,
+        input.requestedByUserId,
       ],
     );
 

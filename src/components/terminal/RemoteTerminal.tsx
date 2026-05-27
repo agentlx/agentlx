@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { createPortal } from "react-dom";
 import { Plug2, PlugZap, X } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "@/components/ui/sonner";
@@ -630,7 +631,16 @@ function TerminalPolicyMfaModal({
   onVerify: () => void;
   onClose: () => void;
 }) {
-  return (
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  return createPortal(
     <div className="fixed inset-0 z-[90] grid place-items-center bg-background/80 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg overflow-hidden rounded-lg border border-border bg-surface-raised shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
@@ -691,7 +701,8 @@ function TerminalPolicyMfaModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

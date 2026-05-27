@@ -4,6 +4,15 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.18 - 2026-05-27
+
+### Fixed
+
+- Enforce machine template policies for immediate, scheduled and recurring executions.
+- Recheck queued template executions before dispatch so policy changes also protect already scheduled work.
+- Use the current template risk when evaluating the low-risk-only policy for recurring executions.
+- Center the terminal MFA policy modal in the viewport.
+
 ## 1.0.17 - 2026-05-27
 
 ### Fixed
