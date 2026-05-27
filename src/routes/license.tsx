@@ -1,17 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { BadgeCheck, KeyRound, ShieldAlert } from "lucide-react";
-import { useState } from "react";
+import { BadgeCheck, ExternalLink, KeyRound, ShieldAlert } from "lucide-react";
 import { AppShell, Crumb } from "@/components/AppShell";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/sonner";
-import { installEnterpriseLicenseAction, getEditionStatusAction } from "@/lib/edition-api";
+import { getEditionStatusAction } from "@/lib/edition-api";
 import { APP_NAME } from "@/lib/brand";
-import { requireRouteViewer } from "@/lib/route-protection";
+import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/license")({
   loader: async () => {
-    await requireRouteViewer();
+    await requireRouteScreen("license");
     return getEditionStatusAction();
   },
   head: () => ({
@@ -21,31 +17,8 @@ export const Route = createFileRoute("/license")({
 });
 
 function LicensePage() {
-  const initialStatus = Route.useLoaderData();
-  const installLicense = useServerFn(installEnterpriseLicenseAction);
-  const [status, setStatus] = useState(initialStatus);
-  const [license, setLicense] = useState("");
-  const [saving, setSaving] = useState(false);
+  const status = Route.useLoaderData();
   const enabledCount = status.featureCatalog.filter((feature) => feature.enabled).length;
-
-  const submitLicense = async () => {
-    if (!license.trim()) {
-      toast.error("Informe uma licenca valida.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const nextStatus = await installLicense({ data: { license: license.trim() } });
-      setStatus(nextStatus);
-      setLicense("");
-      toast.success("Licenca atualizada.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nao foi possivel atualizar a licenca.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <AppShell breadcrumb={<Crumb items={[{ label: "root", to: "/" }, { label: "license" }]} />}>
@@ -103,23 +76,27 @@ function LicensePage() {
           <div className="rounded-lg border border-border bg-surface p-5">
             <div className="flex items-center gap-2">
               <KeyRound className="size-4 text-primary" />
-              <h2 className="text-base font-semibold">Licenca</h2>
+              <h2 className="text-base font-semibold">Atualizacao de licenca</h2>
             </div>
-            <textarea
-              value={license}
-              onChange={(event) => setLicense(event.target.value)}
-              disabled={!status.canInstallLicense || saving}
-              placeholder="AGENTLX-LICENSE-v1.payload.signature"
-              className="mt-4 min-h-32 w-full resize-y rounded border border-border bg-background px-3 py-2 font-mono text-xs outline-none focus:border-primary disabled:opacity-60"
-            />
-            <div className="mt-3 flex justify-end">
-              <Button
-                type="button"
-                onClick={() => void submitLicense()}
-                disabled={!status.canInstallLicense || saving}
+            <p className="mt-4 text-sm leading-6 text-muted-foreground">
+              A ativacao e a troca de licenca sao feitas pelo painel do cliente no AgentLX Cloud.
+              Use a opcao de gerar instalacao para ambientes novos ou atualizar ambiente para uma
+              instalacao Enterprise existente.
+            </p>
+            <div className="mt-5 rounded-md border border-border bg-background px-3 py-3 text-sm text-muted-foreground">
+              Este painel exibe o estado local da licenca. Ele nao recebe licencas coladas
+              manualmente.
+            </div>
+            <div className="mt-4">
+              <a
+                href="https://cloud.agentlx.com.br"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary"
               >
-                {saving ? "Salvando..." : "Atualizar licenca"}
-              </Button>
+                Abrir AgentLX Cloud
+                <ExternalLink className="size-3.5" />
+              </a>
             </div>
           </div>
         </section>

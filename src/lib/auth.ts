@@ -10,6 +10,7 @@ export const screenPermissionValues = [
   "templates",
   "policies",
   "logs",
+  "license",
   "users",
 ] as const;
 export type ScreenPermission = (typeof screenPermissionValues)[number];
@@ -21,6 +22,7 @@ export const screenPermissionLabels: Record<ScreenPermission, string> = {
   templates: "Templates",
   policies: "Politicas",
   logs: "Logs",
+  license: "Licenca",
   users: "Usuarios",
 };
 
@@ -170,6 +172,8 @@ export function screenPath(screen: ScreenPermission) {
       return "/policies";
     case "logs":
       return "/logs";
+    case "license":
+      return "/license";
     case "users":
       return "/users";
     default:
@@ -191,6 +195,7 @@ export function resolveDefaultAuthenticatedPath(
     "templates",
     "policies",
     "logs",
+    "license",
     "users",
   ];
 

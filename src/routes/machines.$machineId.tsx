@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { AppShell, Crumb, StatusDot, StatusLabel } from "@/components/AppShell";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "@/components/ui/sonner";
 import type {
@@ -1700,6 +1701,7 @@ function MachineControlModal({
   const [state, setState] = useState<"idle" | "queued" | "running" | "done" | "error">("idle");
   const [execution, setExecution] = useState<ExecutionDetailView | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!execution?.id || !["queued", "dispatched", "running"].includes(execution.status)) {
@@ -1734,14 +1736,6 @@ function MachineControlModal({
   }, [execution?.id, execution?.status, getExecution, router]);
 
   const run = async () => {
-    if (
-      !window.confirm(
-        `${title} em ${machineHostname} sera executado pelo agent com privilegios elevados.\n\nConfirma continuar?`,
-      )
-    ) {
-      return;
-    }
-
     setState("queued");
     setErrorMessage("");
 
@@ -1868,7 +1862,7 @@ function MachineControlModal({
         </button>
         {state === "idle" && (
           <button
-            onClick={() => void run()}
+            onClick={() => setConfirmOpen(true)}
             className={`rounded px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors ${
               isRestart
                 ? "bg-primary hover:bg-primary/90"
@@ -1879,6 +1873,24 @@ function MachineControlModal({
           </button>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title={title}
+        description={
+          <>
+            {title} em <span className="font-medium text-foreground">{machineHostname}</span> sera
+            executado pelo agent com privilegios elevados.
+          </>
+        }
+        tone="danger"
+        confirmLabel={isRestart ? "Confirmar reinicio" : "Confirmar desligamento"}
+        busy={state === "queued" || state === "running"}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          void run();
+        }}
+      />
     </ViewportModal>
   );
 }

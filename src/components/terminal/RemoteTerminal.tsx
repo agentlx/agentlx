@@ -3,6 +3,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { createPortal } from "react-dom";
 import { Plug2, PlugZap, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "@/components/ui/sonner";
 import { TerminalQuickActions } from "@/components/terminal/TerminalQuickActions";
@@ -84,20 +85,11 @@ export function RemoteTerminal({
   const [terminalMfaSetupRequired, setTerminalMfaSetupRequired] = useState(false);
   const [terminalMfaCode, setTerminalMfaCode] = useState("");
   const [terminalMfaVerifying, setTerminalMfaVerifying] = useState(false);
+  const [pendingRiskInput, setPendingRiskInput] = useState<string | null>(null);
   const [tmuxState, setTmuxState] = useState<"active" | "inactive" | "unknown">("unknown");
   const [terminalReady, setTerminalReady] = useState(false);
 
-  const sendTerminalInput = (text: string) => {
-    if (
-      isHighRiskTerminalInput(text) &&
-      !window.confirm(
-        "Este comando pode alterar o estado da maquina ou executar codigo remoto com privilegios elevados.\n\nConfirma o envio ao terminal?",
-      )
-    ) {
-      terminalRef.current?.writeln("\r\n[BLOCKED] Comando de alto risco cancelado pelo usuario.");
-      return false;
-    }
-
+  const sendTerminalInputDirect = useCallback((text: string) => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return false;
@@ -105,18 +97,34 @@ export function RemoteTerminal({
 
     socket.send(JSON.stringify({ type: "terminal.input", data: text }));
     return true;
-  };
+  }, []);
 
-  const focusTerminal = () => {
+  const sendTerminalInput = useCallback(
+    (text: string, options?: { skipRiskConfirm?: boolean }) => {
+      if (!options?.skipRiskConfirm && isHighRiskTerminalInput(text)) {
+        setPendingRiskInput(text);
+        return false;
+      }
+
+      return sendTerminalInputDirect(text);
+    },
+    [sendTerminalInputDirect],
+  );
+
+  const focusTerminal = useCallback(() => {
     terminalRef.current?.focus();
-  };
+  }, []);
 
-  const executeTemplateCommand = (template: RemoteTerminalTemplate) => {
-    const normalizedCommand = template.command.replaceAll("\r\n", "\n").replaceAll("\n", "\r");
-    return sendTerminalInput(
-      normalizedCommand.endsWith("\r") ? normalizedCommand : `${normalizedCommand}\r`,
-    );
-  };
+  const executeTemplateCommand = useCallback(
+    (template: RemoteTerminalTemplate) => {
+      const normalizedCommand = template.command.replaceAll("\r\n", "\n").replaceAll("\n", "\r");
+      return sendTerminalInput(
+        normalizedCommand.endsWith("\r") ? normalizedCommand : `${normalizedCommand}\r`,
+        { skipRiskConfirm: true },
+      );
+    },
+    [sendTerminalInput],
+  );
 
   const startTmux = () => {
     setTmuxState("unknown");
@@ -269,7 +277,7 @@ export function RemoteTerminal({
       fitAddonRef.current = null;
       setTerminalReady(false);
     };
-  }, []);
+  }, [sendTerminalInput]);
 
   const attachToSession = useCallback(
     (
@@ -612,6 +620,25 @@ export function RemoteTerminal({
           onClose={() => setTerminalMfaOpen(false)}
         />
       )}
+      <ConfirmDialog
+        open={pendingRiskInput !== null}
+        title="Enviar comando de alto risco"
+        description="Este comando pode alterar o estado da maquina ou executar codigo remoto com privilegios elevados."
+        tone="danger"
+        confirmLabel="Enviar comando"
+        onClose={() => {
+          setPendingRiskInput(null);
+          terminalRef.current?.writeln("\r\n[BLOCKED] Comando de alto risco cancelado.");
+        }}
+        onConfirm={() => {
+          const command = pendingRiskInput;
+          setPendingRiskInput(null);
+          if (command) {
+            void sendTerminalInputDirect(command);
+            focusTerminal();
+          }
+        }}
+      />
     </Section>
   );
 }

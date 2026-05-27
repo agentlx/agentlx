@@ -4,6 +4,16 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.19 - 2026-05-27
+
+### Changed
+
+- Gate the License section through the same per-user screen permission model used by the other panel sections.
+- Make license updates read-only in the local panel and direct activation or environment updates to AgentLX Cloud.
+- Replace browser confirmation popups with AgentLX confirmation dialogs for high-risk terminal/template actions and machine power controls.
+- Move transient terminal quick-action feedback to bottom-right toast notifications.
+- Tighten the Templates risk badge width so the risk column no longer leaves extra inline space after the label.
+
 ## 1.0.18 - 2026-05-27
 
 ### Fixed

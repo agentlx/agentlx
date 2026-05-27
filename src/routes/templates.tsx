@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { createPortal } from "react-dom";
 import { CalendarClock, Pencil, Play, Plus, Search, ShieldAlert, Trash2, X } from "lucide-react";
 import { AppShell, Crumb, StatusLabel } from "@/components/AppShell";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/components/ui/sonner";
 import {
   MAX_RECURRING_INTERVAL_DAYS,
@@ -117,6 +118,7 @@ function Templates() {
   const [shellSession, setShellSession] = useState<RealtimeTerminalSessionView | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ActionTemplateView | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [highRiskExecutionPending, setHighRiskExecutionPending] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -253,18 +255,14 @@ function Templates() {
     }
   };
 
-  const submitExecution = async () => {
+  const submitExecution = async (options?: { skipHighRiskConfirm?: boolean }) => {
     if (!executeTemplate || !selectedMachineId) {
       toast.error("Selecione uma maquina.");
       return;
     }
 
-    if (
-      executeTemplate.risk === "high" &&
-      !window.confirm(
-        `O template "${executeTemplate.name}" esta marcado como alto risco e sera executado com privilegios do agent no host remoto.\n\nConfirma continuar?`,
-      )
-    ) {
+    if (executeTemplate.risk === "high" && !options?.skipHighRiskConfirm) {
+      setHighRiskExecutionPending(true);
       return;
     }
 
@@ -902,6 +900,26 @@ function Templates() {
           </ModalShell>
         )}
 
+        <ConfirmDialog
+          open={highRiskExecutionPending && Boolean(executeTemplate)}
+          title="Executar template de alto risco"
+          description={
+            <>
+              O template{" "}
+              <span className="font-medium text-foreground">{executeTemplate?.name}</span> esta
+              marcado como alto risco e sera executado com privilegios do agent no host remoto.
+            </>
+          }
+          tone="danger"
+          confirmLabel="Executar template"
+          busy={executing}
+          onClose={() => setHighRiskExecutionPending(false)}
+          onConfirm={() => {
+            setHighRiskExecutionPending(false);
+            void submitExecution({ skipHighRiskConfirm: true });
+          }}
+        />
+
         {machineSelectorOpen && executeTemplate && (
           <ModalShell onClose={() => setMachineSelectorOpen(false)} maxWidthClass="max-w-2xl">
             <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
@@ -1034,7 +1052,7 @@ function RiskBadge({ risk }: { risk: "low" | "medium" | "high" }) {
 
   return (
     <span
-      className={`flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${map[risk]}`}
+      className={`inline-flex w-fit items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${map[risk]}`}
     >
       {risk === "high" && <ShieldAlert className="size-2.5" />}
       {risk}

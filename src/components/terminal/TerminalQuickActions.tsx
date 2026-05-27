@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Command, FileText, Search, Zap } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "@/components/ui/sonner";
 import { searchTmuxQuickActions, type TmuxQuickAction } from "@/lib/tmux-quick-actions";
 import { cn } from "@/lib/utils";
 
@@ -42,9 +44,10 @@ export function TerminalQuickActions({
   const [templateOpen, setTemplateOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [lastActionName, setLastActionName] = useState("");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
   const [tmuxStartPending, setTmuxStartPending] = useState(false);
   const [templateExecutionPending, setTemplateExecutionPending] = useState(false);
+  const [pendingHighRiskTemplate, setPendingHighRiskTemplate] =
+    useState<TemplateQuickAction | null>(null);
   const [flyoutSide, setFlyoutSide] = useState<"right" | "left">("right");
   const tmuxStartTimeoutRef = useRef<number | null>(null);
 
@@ -68,6 +71,18 @@ export function TerminalQuickActions({
   const tmuxReady = tmuxActive;
   const canStartTmux = canExecute && !tmuxActive && !tmuxStartPending;
 
+  const showFeedback = (message: string, tone: "info" | "success" | "error" = "info") => {
+    if (tone === "success") {
+      toast.success(message);
+      return;
+    }
+    if (tone === "error") {
+      toast.error(message);
+      return;
+    }
+    toast(message);
+  };
+
   useEffect(() => {
     if (tmuxActive) {
       if (tmuxStartTimeoutRef.current !== null) {
@@ -88,7 +103,7 @@ export function TerminalQuickActions({
 
     tmuxStartTimeoutRef.current = window.setTimeout(() => {
       setTmuxStartPending(false);
-      setFeedbackMessage("O tmux ainda nao ficou ativo. Confira se o comando abriu a sessao.");
+      showFeedback("O tmux ainda nao ficou ativo. Confira se o comando abriu a sessao.");
       tmuxStartTimeoutRef.current = null;
     }, 6_000);
 
@@ -158,46 +173,79 @@ export function TerminalQuickActions({
 
   const executeAction = (actionItem: TmuxQuickAction) => {
     if (!canExecute) {
-      setFeedbackMessage("Conecte o shell antes de disparar uma acao rapida.");
+      showFeedback("Conecte o shell antes de disparar uma acao rapida.", "error");
       return;
     }
 
     if (tmuxStartPending) {
-      setFeedbackMessage("Aguarde o tmux terminar de abrir antes de usar os atalhos.");
+      showFeedback("Aguarde o tmux terminar de abrir antes de usar os atalhos.");
       return;
     }
 
     if (!tmuxActive) {
-      setFeedbackMessage("Ative o tmux nesta sessao antes de usar os atalhos.");
+      showFeedback("Ative o tmux nesta sessao antes de usar os atalhos.");
       return;
     }
 
     const result = onExecute(actionItem.sequence);
     if (result === false) {
-      setFeedbackMessage("A acao nao foi enviada porque o shell remoto nao esta conectado.");
+      showFeedback("A acao nao foi enviada porque o shell remoto nao esta conectado.", "error");
       return;
     }
 
     setLastActionName(actionItem.name);
-    setFeedbackMessage(`Acao enviada: ${actionItem.name}`);
+    showFeedback(`Acao enviada: ${actionItem.name}`, "success");
     onFocusTerminal?.();
   };
 
   const startTmux = () => {
     if (!canExecute) {
-      setFeedbackMessage("Conecte o shell antes de iniciar o tmux.");
+      showFeedback("Conecte o shell antes de iniciar o tmux.", "error");
       return;
     }
 
     const result = onStartTmux();
     if (result === false) {
-      setFeedbackMessage("Nao foi possivel enviar o comando para iniciar o tmux.");
+      showFeedback("Nao foi possivel enviar o comando para iniciar o tmux.", "error");
       return;
     }
 
     setTmuxStartPending(true);
-    setFeedbackMessage("");
     onFocusTerminal?.();
+  };
+
+  const runTemplate = (template: TemplateQuickAction) => {
+    if (!canExecute) {
+      showFeedback("Conecte o shell antes de executar um template.", "error");
+      return;
+    }
+
+    if (!onExecuteTemplate) {
+      showFeedback("Os templates nao estao disponiveis neste terminal.", "error");
+      return;
+    }
+
+    setTemplateExecutionPending(true);
+    void Promise.resolve(onExecuteTemplate(template))
+      .then((result) => {
+        if (result === false) {
+          showFeedback(
+            "Nao foi possivel enviar o template porque o shell remoto nao esta conectado.",
+            "error",
+          );
+          return;
+        }
+
+        setLastActionName(template.name);
+        showFeedback(`Template enviado: ${template.name}`, "success");
+        onFocusTerminal?.();
+      })
+      .catch(() => {
+        showFeedback("Nao foi possivel executar o template agora.", "error");
+      })
+      .finally(() => {
+        setTemplateExecutionPending(false);
+      });
   };
 
   return (
@@ -375,14 +423,6 @@ export function TerminalQuickActions({
                   )}
                 </div>
               </ScrollArea>
-
-              {feedbackMessage ? (
-                <div className="px-1 pt-2">
-                  <div className="rounded bg-white/5 px-3 py-2 text-[11px] text-muted-foreground">
-                    {feedbackMessage}
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : null}
 
@@ -425,48 +465,12 @@ export function TerminalQuickActions({
                         type="button"
                         disabled={!canExecute || templateExecutionPending}
                         onClick={() => {
-                          if (!canExecute) {
-                            setFeedbackMessage("Conecte o shell antes de executar um template.");
+                          if (template.risk === "high") {
+                            setPendingHighRiskTemplate(template);
                             return;
                           }
 
-                          if (!onExecuteTemplate) {
-                            setFeedbackMessage(
-                              "Os templates nao estao disponiveis neste terminal.",
-                            );
-                            return;
-                          }
-
-                          if (
-                            template.risk === "high" &&
-                            !window.confirm(
-                              `Este template e de alto risco e sera enviado para um shell privilegiado.\n\nConfirma executar "${template.name}"?`,
-                            )
-                          ) {
-                            setFeedbackMessage("Execucao de alto risco cancelada.");
-                            return;
-                          }
-
-                          setTemplateExecutionPending(true);
-                          void Promise.resolve(onExecuteTemplate(template))
-                            .then((result) => {
-                              if (result === false) {
-                                setFeedbackMessage(
-                                  "Nao foi possivel enviar o template porque o shell remoto nao esta conectado.",
-                                );
-                                return;
-                              }
-
-                              setLastActionName(template.name);
-                              setFeedbackMessage(`Template enviado: ${template.name}`);
-                              onFocusTerminal?.();
-                            })
-                            .catch(() => {
-                              setFeedbackMessage("Nao foi possivel executar o template agora.");
-                            })
-                            .finally(() => {
-                              setTemplateExecutionPending(false);
-                            });
+                          runTemplate(template);
                         }}
                         className="w-full rounded px-3 py-2 text-left transition-colors hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -494,18 +498,35 @@ export function TerminalQuickActions({
                   )}
                 </div>
               </ScrollArea>
-
-              {feedbackMessage ? (
-                <div className="px-1 pt-2">
-                  <div className="rounded bg-white/5 px-3 py-2 text-[11px] text-muted-foreground">
-                    {feedbackMessage}
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : null}
         </div>
       ) : null}
+      <ConfirmDialog
+        open={pendingHighRiskTemplate !== null}
+        title="Executar template de alto risco"
+        description={
+          <>
+            O template{" "}
+            <span className="font-medium text-foreground">{pendingHighRiskTemplate?.name}</span>{" "}
+            sera enviado para um shell privilegiado.
+          </>
+        }
+        tone="danger"
+        confirmLabel="Executar template"
+        busy={templateExecutionPending}
+        onClose={() => {
+          setPendingHighRiskTemplate(null);
+          showFeedback("Execucao de alto risco cancelada.");
+        }}
+        onConfirm={() => {
+          const template = pendingHighRiskTemplate;
+          setPendingHighRiskTemplate(null);
+          if (template) {
+            runTemplate(template);
+          }
+        }}
+      />
     </div>
   );
 }

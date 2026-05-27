@@ -408,6 +408,7 @@ const screenIconMap: Record<ScreenPermission, typeof LayoutDashboard> = {
   templates: FileText,
   policies: ShieldCheck,
   logs: ScrollText,
+  license: KeyRound,
   users: UserCircle2,
 };
 
