@@ -15,7 +15,7 @@ const SCRYPT_KEYLEN = 64;
 const SCRYPT_N = 16_384;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
-const ALL_SCREENS = ["dashboard", "machines", "groups", "templates", "logs", "users"];
+const ALL_SCREENS = ["dashboard", "machines", "groups", "templates", "monitoring", "logs", "users"];
 
 function printUsage() {
   console.log(`Usage:
