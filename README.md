@@ -329,20 +329,20 @@ O comando `start` sobe o servidor Node responsável por:
 A imagem pública recomendada para produção é versionada e deve ficar fixada no Compose:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v1.0.21
+image: ghcr.io/agentlx/agentlx:v1.0.22
 ```
 
 Em produção, prefira fixar também o digest publicado da release:
 
 ```yaml
-image: ghcr.io/agentlx/agentlx:v1.0.21@sha256:eee8208b0ce2a594f05cf6d2640b94d85349750302d78bc1470892055645c733
+image: ghcr.io/agentlx/agentlx:v1.0.22
 ```
 
 Para atualizar uma instalação existente:
 
 ```bash
 cd /opt/agentlx-panel
-sed -i 's|ghcr.io/agentlx/agentlx:v[0-9.]*|ghcr.io/agentlx/agentlx:v1.0.21|' docker-compose.yml
+sed -i 's|ghcr.io/agentlx/agentlx:v[0-9.]*|ghcr.io/agentlx/agentlx:v1.0.22|' docker-compose.yml
 docker compose pull app
 docker compose up -d --force-recreate app
 docker compose logs -f app

@@ -13,6 +13,7 @@ import { Route as UsersRouteImport } from './routes/users'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PoliciesRouteImport } from './routes/policies'
+import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LicenseRouteImport } from './routes/license'
@@ -65,6 +66,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const PoliciesRoute = PoliciesRouteImport.update({
   id: '/policies',
   path: '/policies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitoringRoute = MonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LogsRoute = LogsRouteImport.update({
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
+  '/monitoring': typeof MonitoringRoute
   '/policies': typeof PoliciesRoute
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
+  '/monitoring': typeof MonitoringRoute
   '/policies': typeof PoliciesRoute
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
@@ -325,6 +333,7 @@ export interface FileRoutesById {
   '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
+  '/monitoring': typeof MonitoringRoute
   '/policies': typeof PoliciesRoute
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
@@ -366,6 +375,7 @@ export interface FileRouteTypes {
     | '/license'
     | '/login'
     | '/logs'
+    | '/monitoring'
     | '/policies'
     | '/profile'
     | '/templates'
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
     | '/license'
     | '/login'
     | '/logs'
+    | '/monitoring'
     | '/policies'
     | '/profile'
     | '/templates'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/license'
     | '/login'
     | '/logs'
+    | '/monitoring'
     | '/policies'
     | '/profile'
     | '/templates'
@@ -484,6 +496,7 @@ export interface RootRouteChildren {
   LicenseRoute: typeof LicenseRoute
   LoginRoute: typeof LoginRoute
   LogsRoute: typeof LogsRoute
+  MonitoringRoute: typeof MonitoringRoute
   PoliciesRoute: typeof PoliciesRoute
   ProfileRoute: typeof ProfileRoute
   TemplatesRoute: typeof TemplatesRoute
@@ -542,6 +555,13 @@ declare module '@tanstack/react-router' {
       path: '/policies'
       fullPath: '/policies'
       preLoaderRoute: typeof PoliciesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitoring': {
+      id: '/monitoring'
+      path: '/monitoring'
+      fullPath: '/monitoring'
+      preLoaderRoute: typeof MonitoringRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/logs': {
@@ -823,6 +843,7 @@ const rootRouteChildren: RootRouteChildren = {
   LicenseRoute: LicenseRoute,
   LoginRoute: LoginRoute,
   LogsRoute: LogsRoute,
+  MonitoringRoute: MonitoringRoute,
   PoliciesRoute: PoliciesRoute,
   ProfileRoute: ProfileRoute,
   TemplatesRoute: TemplatesRoute,

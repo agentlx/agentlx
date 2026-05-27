@@ -32,6 +32,9 @@ export const Route = createFileRoute("/users")({
       canAssignPolicies: editionStatus.featureCatalog.some(
         (feature) => feature.id === "machine_policy" && feature.enabled,
       ),
+      canAssignMonitoring: editionStatus.featureCatalog.some(
+        (feature) => feature.id === "security_monitoring" && feature.enabled,
+      ),
     };
   },
   head: () => ({
@@ -64,7 +67,7 @@ function buildIdSignature(ids: string[]) {
 
 function UsersPage() {
   const router = useRouter();
-  const { users, viewer, canAssignPolicies } = Route.useLoaderData();
+  const { users, viewer, canAssignPolicies, canAssignMonitoring } = Route.useLoaderData();
   const createUser = useServerFn(createUserAction);
   const updateUser = useServerFn(updateUserAction);
   const resetUserMfa = useServerFn(resetUserMfaAction);
@@ -80,8 +83,12 @@ function UsersPage() {
   const [page, setPage] = useState(1);
   const memberPermissionOptions = useMemo(
     () =>
-      baseMemberPermissionOptions.filter((screen) => canAssignPolicies || screen !== "policies"),
-    [canAssignPolicies],
+      baseMemberPermissionOptions.filter(
+        (screen) =>
+          (canAssignPolicies || screen !== "policies") &&
+          (canAssignMonitoring || screen !== "monitoring"),
+      ),
+    [canAssignMonitoring, canAssignPolicies],
   );
 
   const sortedUsers = useMemo(

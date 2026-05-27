@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/security/alerts")({
     handlers: {
       GET: async ({ request }) => {
         try {
-          const viewer = await requireScreenAccess("logs");
+          const viewer = await requireScreenAccess("monitoring");
           const unavailable = await securityMonitoringFeatureGate();
           if (unavailable) {
             return unavailable;

@@ -4,6 +4,18 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.22 - 2026-05-27
+
+### Added
+
+- Add the licensed Monitoramento section with a Security Monitoring dashboard for Enterprise-feature-enabled installs.
+- Add frontend filters and charts for security event volume, authentication outcomes, alert severity/status, MITRE metadata, top machines, source IPs and recent alerts.
+
+### Changed
+
+- Move Security Monitoring panel/API access from the generic Logs screen permission to a dedicated Monitoramento permission.
+- Update the public image references for the 1.0.22 release.
+
 ## 1.0.21 - 2026-05-27
 
 ### Fixed
