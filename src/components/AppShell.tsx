@@ -25,6 +25,8 @@ import { logoutAction } from "@/lib/auth-api";
 import { useAuthState } from "@/lib/auth-client";
 import { getEditionStatusAction } from "@/lib/edition-api";
 
+let cachedEnabledFeatures: Set<string> | null = null;
+
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, screen: "dashboard" },
   { to: "/machines", label: "Maquinas", icon: Monitor, exact: false, screen: "machines" },
@@ -57,11 +59,14 @@ export function AppShell({
   const { viewer, loading: viewerLoading, refreshViewer } = useAuthState();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(new Set());
+  const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(
+    () => cachedEnabledFeatures ?? new Set(),
+  );
 
   useEffect(() => {
     let cancelled = false;
     if (!viewer) {
+      cachedEnabledFeatures = null;
       setEnabledFeatures(new Set());
       return () => {
         cancelled = true;
@@ -73,15 +78,15 @@ export function AppShell({
         if (cancelled) {
           return;
         }
-        setEnabledFeatures(
-          new Set(
-            status.featureCatalog.filter((feature) => feature.enabled).map((feature) => feature.id),
-          ),
+        const nextFeatures = new Set(
+          status.featureCatalog.filter((feature) => feature.enabled).map((feature) => feature.id),
         );
+        cachedEnabledFeatures = nextFeatures;
+        setEnabledFeatures(nextFeatures);
       })
       .catch(() => {
         if (!cancelled) {
-          setEnabledFeatures(new Set());
+          setEnabledFeatures(cachedEnabledFeatures ?? new Set());
         }
       });
 

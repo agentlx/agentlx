@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Pencil, Plus, Search, ShieldCheck, X } from "lucide-react";
+import { Check, Pencil, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AppShell, Crumb } from "@/components/AppShell";
@@ -30,6 +30,7 @@ export const Route = createFileRoute("/policies")({
 });
 
 const PAGE_SIZE = 10;
+const SELECTOR_PAGE_SIZE = 10;
 
 function PoliciesPage() {
   const router = useRouter();
@@ -145,7 +146,6 @@ function PoliciesPage() {
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="size-4 text-primary" />
                     <p className="truncate text-sm font-semibold">{policy.name}</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
@@ -234,6 +234,7 @@ function PolicyEditorModal({
   const [enabled, setEnabled] = useState(policy.enabled);
   const [mfaMode, setMfaMode] = useState<MachinePolicyMfaMode>(policy.mfaMode);
   const [userScope, setUserScope] = useState(policy.userScope.scope);
+  const [pickerMode, setPickerMode] = useState<"machines" | "groups" | "users" | null>(null);
   const [targetMachineIds, setTargetMachineIds] = useState(
     policy.targets.filter((target) => target.type === "machine").map((target) => target.id),
   );
@@ -244,11 +245,56 @@ function PolicyEditorModal({
     policy.userScope.users.map((user) => user.id),
   );
 
-  const toggle = (value: string, selected: string[], setter: (values: string[]) => void) => {
-    setter(
-      selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value],
-    );
-  };
+  const machineOptions = useMemo(
+    () =>
+      data.machines
+        .map((machine) => ({
+          id: machine.id,
+          name: machine.hostname,
+          description: `${machine.agentName} - ${machine.ip}`,
+          meta: machine.status,
+        }))
+        .sort(sortSelectableItems),
+    [data.machines],
+  );
+
+  const groupOptions = useMemo(
+    () =>
+      data.groups
+        .map((group) => ({
+          id: group.id,
+          name: group.name,
+          description: group.description || "Sem descricao.",
+          meta: `${group.machineCount} maquina${group.machineCount === 1 ? "" : "s"}`,
+        }))
+        .sort(sortSelectableItems),
+    [data.groups],
+  );
+
+  const userOptions = useMemo(
+    () =>
+      data.users
+        .map((user) => ({
+          id: user.id,
+          name: user.fullName,
+          description: user.email,
+          meta: user.disabled ? "Desativado" : user.role === "admin" ? "Administrador" : "Operador",
+        }))
+        .sort(sortSelectableItems),
+    [data.users],
+  );
+
+  const selectedMachines = selectedItemsFromIds(targetMachineIds, machineOptions, policy.targets);
+  const selectedGroups = selectedItemsFromIds(targetGroupIds, groupOptions, policy.targets);
+  const selectedUsers = selectedItemsFromIds(
+    selectedUserIds,
+    userOptions,
+    policy.userScope.users.map((user) => ({
+      id: user.id,
+      name: user.fullName,
+      description: user.email,
+    })),
+  );
 
   const submit = () => {
     onSave({
@@ -277,83 +323,89 @@ function PolicyEditorModal({
         </button>
       </div>
 
-      <div className="max-h-[72vh] overflow-y-auto p-5">
-        <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-background/50 p-4">
-          <button
-            type="button"
-            onClick={() => setEnabled((current) => !current)}
-            className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
-              enabled
-                ? "border-success/30 bg-success/10 text-success"
-                : "border-border text-muted-foreground hover:bg-secondary"
-            }`}
-          >
-            <Check className="size-4" />
-            {enabled ? "Habilitado" : "Desabilitado"}
-          </button>
-
-          {policy.key === "require_mfa" ? (
-            <select
-              value={mfaMode}
-              onChange={(event) => setMfaMode(event.target.value as MachinePolicyMfaMode)}
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-            >
-              <option value="all">Tudo</option>
-              <option value="machine_access">Apenas acessar maquina</option>
-              <option value="terminal">Apenas conectar terminal remoto</option>
-            </select>
-          ) : (
-            <select
-              value={userScope}
-              onChange={(event) => setUserScope(event.target.value as "all" | "selected")}
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-            >
-              <option value="all">Todos</option>
-              <option value="selected">Selecionar usuarios</option>
-            </select>
-          )}
-        </div>
-
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <SelectionPanel
-            title="Maquinas"
-            empty="Nenhuma maquina cadastrada."
-            items={data.machines.map((machine) => ({
-              id: machine.id,
-              name: machine.hostname,
-              description: `${machine.agentName} · ${machine.ip}`,
-            }))}
-            selected={targetMachineIds}
-            onToggle={(id) => toggle(id, targetMachineIds, setTargetMachineIds)}
-          />
-          <SelectionPanel
-            title="Grupos"
-            empty="Nenhum grupo cadastrado."
-            items={data.groups.map((group) => ({
-              id: group.id,
-              name: group.name,
-              description: `${group.machineCount} maquina${group.machineCount === 1 ? "" : "s"}`,
-            }))}
-            selected={targetGroupIds}
-            onToggle={(id) => toggle(id, targetGroupIds, setTargetGroupIds)}
-          />
-        </div>
-
-        {policy.key !== "require_mfa" && userScope === "selected" && (
-          <div className="mt-4">
-            <SelectionPanel
-              title="Usuarios"
-              empty="Nenhum usuario cadastrado."
-              items={data.users.map((user) => ({
-                id: user.id,
-                name: user.fullName,
-                description: user.email,
-              }))}
-              selected={selectedUserIds}
-              onToggle={(id) => toggle(id, selectedUserIds, setSelectedUserIds)}
-            />
+      <div className="max-h-[72vh] space-y-5 overflow-y-auto p-5">
+        <section className="grid gap-4 rounded-md border border-border bg-background/50 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div>
+            <p className="text-sm font-medium">Status da politica</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Politicas desabilitadas ficam cadastradas, mas nao sao aplicadas.
+            </p>
           </div>
-        )}
+          <div className="flex flex-wrap items-center justify-start gap-3 lg:justify-end">
+            <button
+              type="button"
+              onClick={() => setEnabled((current) => !current)}
+              className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                enabled
+                  ? "border-success/30 bg-success/10 text-success"
+                  : "border-border text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Check className="size-4" />
+              {enabled ? "Habilitado" : "Desabilitado"}
+            </button>
+
+            {policy.key === "require_mfa" ? (
+              <select
+                value={mfaMode}
+                onChange={(event) => setMfaMode(event.target.value as MachinePolicyMfaMode)}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              >
+                <option value="all">Tudo</option>
+                <option value="machine_access">Apenas acessar maquina</option>
+                <option value="terminal">Apenas conectar terminal remoto</option>
+              </select>
+            ) : (
+              <select
+                value={userScope}
+                onChange={(event) => setUserScope(event.target.value as "all" | "selected")}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              >
+                <option value="all">Todos</option>
+                <option value="selected">Selecionar usuarios</option>
+              </select>
+            )}
+          </div>
+        </section>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PolicySelectionPanel
+            title="Maquinas"
+            description="Maquinas individuais que recebem esta politica."
+            actionLabel="Selecionar maquinas"
+            selectedItems={selectedMachines}
+            emptyLabel="Nenhuma maquina adicionada."
+            onOpen={() => setPickerMode("machines")}
+          />
+          <PolicySelectionPanel
+            title="Grupos"
+            description="Grupos cujas maquinas recebem esta politica."
+            actionLabel="Selecionar grupos"
+            selectedItems={selectedGroups}
+            emptyLabel="Nenhum grupo adicionado."
+            onOpen={() => setPickerMode("groups")}
+          />
+        </div>
+
+        {policy.key !== "require_mfa" ? (
+          <PolicySelectionPanel
+            title="Usuarios"
+            description={
+              userScope === "selected"
+                ? "Somente os usuarios selecionados sao afetados."
+                : "A politica afeta todos os usuarios."
+            }
+            actionLabel="Selecionar usuarios"
+            selectedItems={userScope === "selected" ? selectedUsers : []}
+            emptyLabel={
+              userScope === "selected"
+                ? "Nenhum usuario adicionado."
+                : "Todos os usuarios serao afetados."
+            }
+            disabled={userScope !== "selected"}
+            onOpen={() => setPickerMode("users")}
+          />
+        ) : null}
       </div>
 
       <div className="flex justify-end gap-2 border-t border-border bg-background/50 px-5 py-4">
@@ -370,88 +422,326 @@ function PolicyEditorModal({
           Salvar politica
         </button>
       </div>
+
+      {pickerMode === "machines" && (
+        <PolicyItemPickerModal
+          title="Selecionar maquinas"
+          description="Escolha as maquinas individuais que receberao esta politica."
+          items={machineOptions}
+          selectedIds={targetMachineIds}
+          onClose={() => setPickerMode(null)}
+          onApply={(ids) => {
+            setTargetMachineIds(ids);
+            setPickerMode(null);
+          }}
+        />
+      )}
+
+      {pickerMode === "groups" && (
+        <PolicyItemPickerModal
+          title="Selecionar grupos"
+          description="Escolha os grupos cujas maquinas receberao esta politica."
+          items={groupOptions}
+          selectedIds={targetGroupIds}
+          onClose={() => setPickerMode(null)}
+          onApply={(ids) => {
+            setTargetGroupIds(ids);
+            setPickerMode(null);
+          }}
+        />
+      )}
+
+      {pickerMode === "users" && (
+        <PolicyItemPickerModal
+          title="Selecionar usuarios"
+          description="Escolha os usuarios afetados por esta politica."
+          items={userOptions}
+          selectedIds={selectedUserIds}
+          onClose={() => setPickerMode(null)}
+          onApply={(ids) => {
+            setSelectedUserIds(ids);
+            setPickerMode(null);
+          }}
+        />
+      )}
     </ModalShell>
   );
 }
 
-function SelectionPanel({
+type SelectableItem = {
+  id: string;
+  name: string;
+  description: string;
+  meta?: string;
+};
+
+function sortSelectableItems(left: SelectableItem, right: SelectableItem) {
+  const nameComparison = left.name.localeCompare(right.name, "pt-BR", { sensitivity: "base" });
+  if (nameComparison !== 0) {
+    return nameComparison;
+  }
+  return left.description.localeCompare(right.description, "pt-BR", { sensitivity: "base" });
+}
+
+function selectedItemsFromIds(
+  selectedIds: string[],
+  options: SelectableItem[],
+  fallbackItems: Array<{ id: string; name: string; description?: string }>,
+) {
+  const optionById = new Map(options.map((item) => [item.id, item]));
+  const fallbackById = new Map(fallbackItems.map((item) => [item.id, item]));
+
+  return selectedIds
+    .map((id) => {
+      const option = optionById.get(id);
+      if (option) {
+        return option;
+      }
+      const fallback = fallbackById.get(id);
+      return fallback
+        ? {
+            id,
+            name: fallback.name,
+            description: fallback.description ?? "Item selecionado.",
+          }
+        : null;
+    })
+    .filter((item): item is SelectableItem => Boolean(item))
+    .sort(sortSelectableItems);
+}
+
+function buildIdSignature(ids: string[]) {
+  return [...ids].sort((left, right) => left.localeCompare(right)).join("|");
+}
+
+function PolicySelectionPanel({
   title,
-  empty,
-  items,
-  selected,
-  onToggle,
+  description,
+  actionLabel,
+  selectedItems,
+  emptyLabel,
+  disabled = false,
+  onOpen,
 }: {
   title: string;
-  empty: string;
-  items: Array<{ id: string; name: string; description: string }>;
-  selected: string[];
-  onToggle: (id: string) => void;
+  description: string;
+  actionLabel: string;
+  selectedItems: SelectableItem[];
+  emptyLabel: string;
+  disabled?: boolean;
+  onOpen: () => void;
 }) {
+  return (
+    <section className="rounded-md border border-border bg-background/70 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold">{title}</h4>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          disabled={disabled}
+          className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Plus className="size-3.5" /> {actionLabel}
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {selectedItems.map((item) => (
+          <span
+            key={item.id}
+            className="max-w-full rounded-sm border border-border bg-surface px-2.5 py-1 text-xs text-muted-foreground"
+            title={`${item.name} - ${item.description}`}
+          >
+            {item.name}
+          </span>
+        ))}
+        {selectedItems.length === 0 && (
+          <span className="text-xs text-muted-foreground">{emptyLabel}</span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PolicyItemPickerModal({
+  title,
+  description,
+  items,
+  selectedIds,
+  onClose,
+  onApply,
+}: {
+  title: string;
+  description: string;
+  items: SelectableItem[];
+  selectedIds: string[];
+  onClose: () => void;
+  onApply: (ids: string[]) => void;
+}) {
+  const [draftSelectedIds, setDraftSelectedIds] = useState(selectedIds);
   const [search, setSearch] = useState("");
-  const filtered = useMemo(() => {
+  const [page, setPage] = useState(1);
+  const hasChanges = buildIdSignature(draftSelectedIds) !== buildIdSignature(selectedIds);
+
+  useEffect(() => {
+    setDraftSelectedIds(selectedIds);
+    setSearch("");
+    setPage(1);
+  }, [selectedIds, title]);
+
+  const filteredItems = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
-    const sorted = [...items].sort((left, right) =>
-      left.name.localeCompare(right.name, "pt-BR", { sensitivity: "base" }),
-    );
     if (!term) {
-      return sorted;
+      return items;
     }
-    return sorted.filter((item) =>
-      [item.name, item.description].join(" ").toLocaleLowerCase("pt-BR").includes(term),
+    return items.filter((item) =>
+      [item.name, item.description, item.meta ?? ""]
+        .join(" ")
+        .toLocaleLowerCase("pt-BR")
+        .includes(term),
     );
   }, [items, search]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / SELECTOR_PAGE_SIZE));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const pagedItems = filteredItems.slice(
+    (safePage - 1) * SELECTOR_PAGE_SIZE,
+    safePage * SELECTOR_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const toggleItem = (itemId: string) => {
+    setDraftSelectedIds((current) =>
+      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId],
+    );
+  };
+
   return (
-    <section className="rounded-md border border-border bg-background/50">
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <h4 className="text-sm font-semibold">{title}</h4>
-          <span className="text-xs text-muted-foreground">{selected.length} selecionado(s)</span>
+    <ModalShell onClose={onClose} maxWidthClass="max-w-3xl">
+      <div className="flex items-center justify-between gap-4 border-b border-border bg-background/50 px-5 py-4">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold">{title}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         </div>
-        <div className="relative mt-3">
+        <button
+          onClick={onClose}
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+
+      <div className="p-5">
+        <div className="relative">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder={`Buscar ${title.toLocaleLowerCase("pt-BR")}`}
-            className="w-full rounded-md border border-border bg-background py-2 pl-3 pr-10 text-sm outline-none focus:border-primary"
+            placeholder="Buscar"
+            className="w-full rounded-md border border-border bg-background py-2.5 pl-3 pr-11 text-sm outline-none focus:border-primary"
           />
-          <Search className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            <Search className="size-4" />
+          </span>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-md border border-border bg-background/60">
+          <ul className="max-h-[54vh] divide-y divide-border overflow-y-auto">
+            {pagedItems.map((item) => {
+              const active = draftSelectedIds.includes(item.id);
+
+              return (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleItem(item.id)}
+                    className={`flex w-full items-start justify-between gap-4 px-4 py-3 text-left transition-colors ${
+                      active ? "bg-primary/10" : "hover:bg-white/[0.03]"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.name}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {item.description}
+                      </p>
+                      {item.meta ? (
+                        <span className="mt-2 inline-flex rounded-sm border border-border bg-surface px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {item.meta}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span
+                      className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-sm border ${
+                        active
+                          ? "border-primary/30 bg-primary text-primary-foreground"
+                          : "border-border bg-surface text-transparent"
+                      }`}
+                    >
+                      <Check className="size-3.5" />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+
+            {pagedItems.length === 0 && (
+              <li className="px-4 py-12 text-center text-sm text-muted-foreground">
+                Nenhum item encontrado.
+              </li>
+            )}
+          </ul>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3 text-xs font-mono text-muted-foreground">
+          <span>
+            Pagina {safePage} de {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(safePage - 1)}
+              disabled={safePage <= 1}
+              className="rounded-md border border-border px-3 py-1.5 transition-colors hover:bg-secondary disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage(safePage + 1)}
+              disabled={safePage >= totalPages}
+              className="rounded-md border border-border px-3 py-1.5 transition-colors hover:bg-secondary disabled:opacity-50"
+            >
+              Proxima
+            </button>
+          </div>
         </div>
       </div>
-      <ul className="max-h-72 divide-y divide-border overflow-y-auto">
-        {filtered.map((item) => {
-          const active = selected.includes(item.id);
-          return (
-            <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => onToggle(item.id)}
-                className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors ${
-                  active ? "bg-primary/10" : "hover:bg-white/[0.03]"
-                }`}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{item.name}</p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p>
-                </div>
-                <span
-                  className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-sm border ${
-                    active
-                      ? "border-primary/30 bg-primary text-primary-foreground"
-                      : "border-border bg-surface text-transparent"
-                  }`}
-                >
-                  <Check className="size-3.5" />
-                </span>
-              </button>
-            </li>
-          );
-        })}
-        {filtered.length === 0 && (
-          <li className="px-4 py-10 text-center text-sm text-muted-foreground">{empty}</li>
-        )}
-      </ul>
-    </section>
+
+      <div className="flex justify-end gap-2 border-t border-border bg-background/50 px-5 py-4">
+        <button
+          onClick={onClose}
+          className="rounded-md border border-border px-3 py-1.5 text-xs transition-colors hover:bg-secondary"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={() => onApply(draftSelectedIds)}
+          disabled={!hasChanges}
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Aplicar
+        </button>
+      </div>
+    </ModalShell>
   );
 }
 

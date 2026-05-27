@@ -4,6 +4,14 @@ All notable changes to agentlx will be documented in this file.
 
 The project uses semantic versioning.
 
+## 1.0.17 - 2026-05-27
+
+### Fixed
+
+- Remove the decorative icon from policy names in the Policies list.
+- Keep the Enterprise feature-aware sidebar stable while navigating between sections.
+- Rework the Policies editor so machines, groups and selected users show current assignments and open focused picker modals.
+
 ## 1.0.16 - 2026-05-26
 
 ### Added
