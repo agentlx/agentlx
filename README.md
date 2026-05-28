@@ -583,6 +583,7 @@ Resposta esperada:
 | `npm run db:wait`             | Aguarda o PostgreSQL responder.           |
 | `npm run user:create-admin`   | Cria ou promove administrador.            |
 | `npm run agent:queue-command` | Enfileira comando remoto direto no banco. |
+| `npm run test`                | Executa testes automatizados focados em fluxos criticos. |
 | `npm run lint`                | Executa ESLint.                           |
 | `npm run format`              | Formata o projeto com Prettier.           |
 
