@@ -22,7 +22,9 @@ import type {
   CreateSecurityAlertCommentInput,
   SecurityAlertListInput,
   SecurityDashboardInput,
+  SecurityEventExportInput,
   SecurityEventListInput,
+  SecurityMachineEventsInput,
   SecurityPrincipal,
   SecurityRuleListInput,
   UpdateSecurityAlertStatusInput,
@@ -366,6 +368,43 @@ export async function listEnterpriseSecurityEvents(
   }
 
   return provider.securityMonitoring.listEvents(input, enterpriseRuntimeContext());
+}
+
+export async function getEnterpriseSecurityMachineEventsOverview(
+  input: SecurityMachineEventsInput & { principal: SecurityPrincipal },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.getMachineEventsOverview(input, enterpriseRuntimeContext());
+}
+
+export async function getEnterpriseSecurityEventDetail(input: {
+  eventId: string;
+  principal: SecurityPrincipal;
+}) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.getEventDetail(input, enterpriseRuntimeContext());
+}
+
+export async function exportEnterpriseSecurityEvents(
+  input: SecurityEventExportInput & { principal: SecurityPrincipal },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.exportEvents(input, enterpriseRuntimeContext());
 }
 
 export async function listEnterpriseSecurityRules(

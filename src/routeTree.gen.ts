@@ -37,6 +37,9 @@ import { Route as ApiAgentInstallDotshRouteImport } from './routes/api/agent/ins
 import { Route as ApiAgentHeartbeatRouteImport } from './routes/api/agent/heartbeat'
 import { Route as ApiAgentDecommissionRouteImport } from './routes/api/agent/decommission'
 import { Route as ApiSecurityRulesRuleIdRouteImport } from './routes/api/security/rules.$ruleId'
+import { Route as ApiSecurityEventsOverviewRouteImport } from './routes/api/security/events.overview'
+import { Route as ApiSecurityEventsExportRouteImport } from './routes/api/security/events.export'
+import { Route as ApiSecurityEventsEventIdRouteImport } from './routes/api/security/events.$eventId'
 import { Route as ApiSecurityAlertsAlertIdRouteImport } from './routes/api/security/alerts.$alertId'
 import { Route as ApiAgentSecurityEventsRouteImport } from './routes/api/agent/security/events'
 import { Route as ApiAgentFilesRuntimeManifestRouteImport } from './routes/api/agent/files/runtime-manifest'
@@ -188,6 +191,23 @@ const ApiSecurityRulesRuleIdRoute = ApiSecurityRulesRuleIdRouteImport.update({
   path: '/$ruleId',
   getParentRoute: () => ApiSecurityRulesRoute,
 } as any)
+const ApiSecurityEventsOverviewRoute =
+  ApiSecurityEventsOverviewRouteImport.update({
+    id: '/overview',
+    path: '/overview',
+    getParentRoute: () => ApiSecurityEventsRoute,
+  } as any)
+const ApiSecurityEventsExportRoute = ApiSecurityEventsExportRouteImport.update({
+  id: '/export',
+  path: '/export',
+  getParentRoute: () => ApiSecurityEventsRoute,
+} as any)
+const ApiSecurityEventsEventIdRoute =
+  ApiSecurityEventsEventIdRouteImport.update({
+    id: '/$eventId',
+    path: '/$eventId',
+    getParentRoute: () => ApiSecurityEventsRoute,
+  } as any)
 const ApiSecurityAlertsAlertIdRoute =
   ApiSecurityAlertsAlertIdRouteImport.update({
     id: '/$alertId',
@@ -270,7 +290,7 @@ export interface FileRoutesByFullPath {
   '/api/agent/update.sh': typeof ApiAgentUpdateDotshRoute
   '/api/security/alerts': typeof ApiSecurityAlertsRouteWithChildren
   '/api/security/dashboard': typeof ApiSecurityDashboardRoute
-  '/api/security/events': typeof ApiSecurityEventsRoute
+  '/api/security/events': typeof ApiSecurityEventsRouteWithChildren
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
@@ -282,6 +302,9 @@ export interface FileRoutesByFullPath {
   '/api/agent/files/runtime-manifest': typeof ApiAgentFilesRuntimeManifestRoute
   '/api/agent/security/events': typeof ApiAgentSecurityEventsRoute
   '/api/security/alerts/$alertId': typeof ApiSecurityAlertsAlertIdRouteWithChildren
+  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRoute
+  '/api/security/events/export': typeof ApiSecurityEventsExportRoute
+  '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
@@ -310,7 +333,7 @@ export interface FileRoutesByTo {
   '/api/agent/update.sh': typeof ApiAgentUpdateDotshRoute
   '/api/security/alerts': typeof ApiSecurityAlertsRouteWithChildren
   '/api/security/dashboard': typeof ApiSecurityDashboardRoute
-  '/api/security/events': typeof ApiSecurityEventsRoute
+  '/api/security/events': typeof ApiSecurityEventsRouteWithChildren
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
@@ -322,6 +345,9 @@ export interface FileRoutesByTo {
   '/api/agent/files/runtime-manifest': typeof ApiAgentFilesRuntimeManifestRoute
   '/api/agent/security/events': typeof ApiAgentSecurityEventsRoute
   '/api/security/alerts/$alertId': typeof ApiSecurityAlertsAlertIdRouteWithChildren
+  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRoute
+  '/api/security/events/export': typeof ApiSecurityEventsExportRoute
+  '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
@@ -351,7 +377,7 @@ export interface FileRoutesById {
   '/api/agent/update.sh': typeof ApiAgentUpdateDotshRoute
   '/api/security/alerts': typeof ApiSecurityAlertsRouteWithChildren
   '/api/security/dashboard': typeof ApiSecurityDashboardRoute
-  '/api/security/events': typeof ApiSecurityEventsRoute
+  '/api/security/events': typeof ApiSecurityEventsRouteWithChildren
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
@@ -363,6 +389,9 @@ export interface FileRoutesById {
   '/api/agent/files/runtime-manifest': typeof ApiAgentFilesRuntimeManifestRoute
   '/api/agent/security/events': typeof ApiAgentSecurityEventsRoute
   '/api/security/alerts/$alertId': typeof ApiSecurityAlertsAlertIdRouteWithChildren
+  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRoute
+  '/api/security/events/export': typeof ApiSecurityEventsExportRoute
+  '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
@@ -405,6 +434,9 @@ export interface FileRouteTypes {
     | '/api/agent/files/runtime-manifest'
     | '/api/agent/security/events'
     | '/api/security/alerts/$alertId'
+    | '/api/security/events/$eventId'
+    | '/api/security/events/export'
+    | '/api/security/events/overview'
     | '/api/security/rules/$ruleId'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
@@ -445,6 +477,9 @@ export interface FileRouteTypes {
     | '/api/agent/files/runtime-manifest'
     | '/api/agent/security/events'
     | '/api/security/alerts/$alertId'
+    | '/api/security/events/$eventId'
+    | '/api/security/events/export'
+    | '/api/security/events/overview'
     | '/api/security/rules/$ruleId'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
@@ -485,6 +520,9 @@ export interface FileRouteTypes {
     | '/api/agent/files/runtime-manifest'
     | '/api/agent/security/events'
     | '/api/security/alerts/$alertId'
+    | '/api/security/events/$eventId'
+    | '/api/security/events/export'
+    | '/api/security/events/overview'
     | '/api/security/rules/$ruleId'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
@@ -514,7 +552,7 @@ export interface RootRouteChildren {
   ApiAgentUpdateDotshRoute: typeof ApiAgentUpdateDotshRoute
   ApiSecurityAlertsRoute: typeof ApiSecurityAlertsRouteWithChildren
   ApiSecurityDashboardRoute: typeof ApiSecurityDashboardRoute
-  ApiSecurityEventsRoute: typeof ApiSecurityEventsRoute
+  ApiSecurityEventsRoute: typeof ApiSecurityEventsRouteWithChildren
   ApiSecurityRulesRoute: typeof ApiSecurityRulesRouteWithChildren
   ApiTerminalCloseRoute: typeof ApiTerminalCloseRoute
   ApiTerminalPresenceRoute: typeof ApiTerminalPresenceRoute
@@ -725,6 +763,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSecurityRulesRuleIdRouteImport
       parentRoute: typeof ApiSecurityRulesRoute
     }
+    '/api/security/events/overview': {
+      id: '/api/security/events/overview'
+      path: '/overview'
+      fullPath: '/api/security/events/overview'
+      preLoaderRoute: typeof ApiSecurityEventsOverviewRouteImport
+      parentRoute: typeof ApiSecurityEventsRoute
+    }
+    '/api/security/events/export': {
+      id: '/api/security/events/export'
+      path: '/export'
+      fullPath: '/api/security/events/export'
+      preLoaderRoute: typeof ApiSecurityEventsExportRouteImport
+      parentRoute: typeof ApiSecurityEventsRoute
+    }
+    '/api/security/events/$eventId': {
+      id: '/api/security/events/$eventId'
+      path: '/$eventId'
+      fullPath: '/api/security/events/$eventId'
+      preLoaderRoute: typeof ApiSecurityEventsEventIdRouteImport
+      parentRoute: typeof ApiSecurityEventsRoute
+    }
     '/api/security/alerts/$alertId': {
       id: '/api/security/alerts/$alertId'
       path: '/$alertId'
@@ -826,6 +885,21 @@ const ApiSecurityAlertsRouteChildren: ApiSecurityAlertsRouteChildren = {
 const ApiSecurityAlertsRouteWithChildren =
   ApiSecurityAlertsRoute._addFileChildren(ApiSecurityAlertsRouteChildren)
 
+interface ApiSecurityEventsRouteChildren {
+  ApiSecurityEventsEventIdRoute: typeof ApiSecurityEventsEventIdRoute
+  ApiSecurityEventsExportRoute: typeof ApiSecurityEventsExportRoute
+  ApiSecurityEventsOverviewRoute: typeof ApiSecurityEventsOverviewRoute
+}
+
+const ApiSecurityEventsRouteChildren: ApiSecurityEventsRouteChildren = {
+  ApiSecurityEventsEventIdRoute: ApiSecurityEventsEventIdRoute,
+  ApiSecurityEventsExportRoute: ApiSecurityEventsExportRoute,
+  ApiSecurityEventsOverviewRoute: ApiSecurityEventsOverviewRoute,
+}
+
+const ApiSecurityEventsRouteWithChildren =
+  ApiSecurityEventsRoute._addFileChildren(ApiSecurityEventsRouteChildren)
+
 interface ApiSecurityRulesRouteChildren {
   ApiSecurityRulesRuleIdRoute: typeof ApiSecurityRulesRuleIdRoute
 }
@@ -861,7 +935,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentUpdateDotshRoute: ApiAgentUpdateDotshRoute,
   ApiSecurityAlertsRoute: ApiSecurityAlertsRouteWithChildren,
   ApiSecurityDashboardRoute: ApiSecurityDashboardRoute,
-  ApiSecurityEventsRoute: ApiSecurityEventsRoute,
+  ApiSecurityEventsRoute: ApiSecurityEventsRouteWithChildren,
   ApiSecurityRulesRoute: ApiSecurityRulesRouteWithChildren,
   ApiTerminalCloseRoute: ApiTerminalCloseRoute,
   ApiTerminalPresenceRoute: ApiTerminalPresenceRoute,

@@ -17,9 +17,14 @@ import type {
   SecurityAlertView,
   SecurityDashboardInput,
   SecurityDashboardView,
+  SecurityEventDetailView,
+  SecurityEventExportInput,
+  SecurityEventExportView,
   SecurityEventListInput,
   SecurityEventView,
   SecurityListResponse,
+  SecurityMachineEventsInput,
+  SecurityMachineEventsOverviewView,
   SecurityPrincipal,
   SecurityRuleListInput,
   SecurityRuleView,
@@ -215,6 +220,18 @@ export type EnterpriseSecurityMonitoring = {
     input: SecurityEventListInput & { principal: SecurityPrincipal },
     context: EnterpriseRuntimeContext,
   ): Promise<SecurityListResponse<SecurityEventView>>;
+  getMachineEventsOverview(
+    input: SecurityMachineEventsInput & { principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityMachineEventsOverviewView>;
+  getEventDetail(
+    input: { eventId: string; principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityEventDetailView>;
+  exportEvents(
+    input: SecurityEventExportInput & { principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityEventExportView>;
   listRules(
     input: SecurityRuleListInput & { principal: SecurityPrincipal },
     context: EnterpriseRuntimeContext,

@@ -693,6 +693,22 @@ O alvo recomendado são distribuições Linux modernas.
 9. Execute um template.
 10. Confira o retorno em `Logs`.
 
+### Validacao operacional de Monitoramento > Eventos
+
+Os endpoints abaixo exigem sessao autenticada com acesso a tela `monitoring`,
+licenca Enterprise com `security_monitoring` e permissao sobre a maquina
+consultada:
+
+```bash
+curl -fsS "https://app.seudominio.com/api/security/events/overview?machineId=machine-id&period=24h"
+curl -fsS "https://app.seudominio.com/api/security/events/sevt_event-id"
+curl -fsS "https://app.seudominio.com/api/security/events/export?machineId=machine-id&period=24h&format=csv" -o security-events.csv
+curl -fsS "https://app.seudominio.com/api/security/events/export?machineId=machine-id&period=24h&format=json" -o security-events.json
+```
+
+A listagem enriquecida nao retorna `raw` de logs. Linhas brutas aparecem apenas
+no detalhe do evento, onde devem ser tratadas como dados sensiveis.
+
 ---
 
 ## Licença
