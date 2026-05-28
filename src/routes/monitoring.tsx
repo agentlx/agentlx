@@ -216,13 +216,12 @@ function MonitoringPage() {
               <button className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">
                 Dashboard
               </button>
-              <button
-                type="button"
-                disabled
-                className="rounded-md px-3 py-1.5 text-muted-foreground opacity-60"
+              <Link
+                to="/monitoring/events"
+                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               >
                 Eventos
-              </button>
+              </Link>
             </div>
             <button
               type="button"

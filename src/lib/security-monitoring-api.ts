@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
   securityDashboardInputSchema,
+  securityEventDetailInputSchema,
   securityEventExportInputSchema,
   securityMachineEventsInputSchema,
 } from "@/lib/security-monitoring";
@@ -31,6 +32,22 @@ export const getSecurityMachineEventsOverviewData = createServerFn({ method: "GE
       ...data,
       principal: toSecurityPrincipal(viewer),
     });
+  });
+
+export const getSecurityEventDetailData = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => securityEventDetailInputSchema.parse(data ?? {}))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("monitoring");
+    const { getEnterpriseSecurityEventDetail } = await import("@/server/edition.server");
+    const { toSecurityPrincipal } = await import("@/server/security-monitoring.server");
+
+    const detail = await getEnterpriseSecurityEventDetail({
+      ...data,
+      principal: toSecurityPrincipal(viewer),
+    });
+
+    return JSON.parse(JSON.stringify(detail));
   });
 
 export const exportSecurityEventsData = createServerFn({ method: "GET" })

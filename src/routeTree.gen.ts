@@ -20,10 +20,12 @@ import { Route as LicenseRouteImport } from './routes/license'
 import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MachinesIndexRouteImport } from './routes/machines.index'
+import { Route as MonitoringEventsRouteImport } from './routes/monitoring.events'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
 import { Route as ApiProfilePhotoRouteImport } from './routes/api/profile-photo'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiDeploymentStatusRouteImport } from './routes/api/deployment-status'
+import { Route as MonitoringEventsEventIdRouteImport } from './routes/monitoring.events_.$eventId'
 import { Route as ApiTerminalPresenceRouteImport } from './routes/api/terminal/presence'
 import { Route as ApiTerminalCloseRouteImport } from './routes/api/terminal/close'
 import { Route as ApiSecurityRulesRouteImport } from './routes/api/security/rules'
@@ -106,6 +108,11 @@ const MachinesIndexRoute = MachinesIndexRouteImport.update({
   path: '/machines/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitoringEventsRoute = MonitoringEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => MonitoringRoute,
+} as any)
 const MachinesMachineIdRoute = MachinesMachineIdRouteImport.update({
   id: '/machines/$machineId',
   path: '/machines/$machineId',
@@ -125,6 +132,11 @@ const ApiDeploymentStatusRoute = ApiDeploymentStatusRouteImport.update({
   id: '/api/deployment-status',
   path: '/api/deployment-status',
   getParentRoute: () => rootRouteImport,
+} as any)
+const MonitoringEventsEventIdRoute = MonitoringEventsEventIdRouteImport.update({
+  id: '/events_/$eventId',
+  path: '/events/$eventId',
+  getParentRoute: () => MonitoringRoute,
 } as any)
 const ApiTerminalPresenceRoute = ApiTerminalPresenceRouteImport.update({
   id: '/api/terminal/presence',
@@ -272,7 +284,7 @@ export interface FileRoutesByFullPath {
   '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
-  '/monitoring': typeof MonitoringRoute
+  '/monitoring': typeof MonitoringRouteWithChildren
   '/policies': typeof PoliciesRoute
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
@@ -281,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/monitoring/events': typeof MonitoringEventsRoute
   '/machines/': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -294,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
+  '/monitoring/events/$eventId': typeof MonitoringEventsEventIdRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -315,7 +329,7 @@ export interface FileRoutesByTo {
   '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
-  '/monitoring': typeof MonitoringRoute
+  '/monitoring': typeof MonitoringRouteWithChildren
   '/policies': typeof PoliciesRoute
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
@@ -324,6 +338,7 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/monitoring/events': typeof MonitoringEventsRoute
   '/machines': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -337,6 +352,7 @@ export interface FileRoutesByTo {
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
+  '/monitoring/events/$eventId': typeof MonitoringEventsEventIdRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -359,7 +375,7 @@ export interface FileRoutesById {
   '/license': typeof LicenseRoute
   '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
-  '/monitoring': typeof MonitoringRoute
+  '/monitoring': typeof MonitoringRouteWithChildren
   '/policies': typeof PoliciesRoute
   '/profile': typeof ProfileRoute
   '/templates': typeof TemplatesRoute
@@ -368,6 +384,7 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/monitoring/events': typeof MonitoringEventsRoute
   '/machines/': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -381,6 +398,7 @@ export interface FileRoutesById {
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
+  '/monitoring/events_/$eventId': typeof MonitoringEventsEventIdRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -413,6 +431,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
+    | '/monitoring/events'
     | '/machines/'
     | '/api/agent/decommission'
     | '/api/agent/heartbeat'
@@ -426,6 +445,7 @@ export interface FileRouteTypes {
     | '/api/security/rules'
     | '/api/terminal/close'
     | '/api/terminal/presence'
+    | '/monitoring/events/$eventId'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -456,6 +476,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
+    | '/monitoring/events'
     | '/machines'
     | '/api/agent/decommission'
     | '/api/agent/heartbeat'
@@ -469,6 +490,7 @@ export interface FileRouteTypes {
     | '/api/security/rules'
     | '/api/terminal/close'
     | '/api/terminal/presence'
+    | '/monitoring/events/$eventId'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -499,6 +521,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
+    | '/monitoring/events'
     | '/machines/'
     | '/api/agent/decommission'
     | '/api/agent/heartbeat'
@@ -512,6 +535,7 @@ export interface FileRouteTypes {
     | '/api/security/rules'
     | '/api/terminal/close'
     | '/api/terminal/presence'
+    | '/monitoring/events_/$eventId'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -534,7 +558,7 @@ export interface RootRouteChildren {
   LicenseRoute: typeof LicenseRoute
   LoginRoute: typeof LoginRoute
   LogsRoute: typeof LogsRoute
-  MonitoringRoute: typeof MonitoringRoute
+  MonitoringRoute: typeof MonitoringRouteWithChildren
   PoliciesRoute: typeof PoliciesRoute
   ProfileRoute: typeof ProfileRoute
   TemplatesRoute: typeof TemplatesRoute
@@ -644,6 +668,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MachinesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monitoring/events': {
+      id: '/monitoring/events'
+      path: '/events'
+      fullPath: '/monitoring/events'
+      preLoaderRoute: typeof MonitoringEventsRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
     '/machines/$machineId': {
       id: '/machines/$machineId'
       path: '/machines/$machineId'
@@ -671,6 +702,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/deployment-status'
       preLoaderRoute: typeof ApiDeploymentStatusRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/monitoring/events_/$eventId': {
+      id: '/monitoring/events_/$eventId'
+      path: '/events/$eventId'
+      fullPath: '/monitoring/events/$eventId'
+      preLoaderRoute: typeof MonitoringEventsEventIdRouteImport
+      parentRoute: typeof MonitoringRoute
     }
     '/api/terminal/presence': {
       id: '/api/terminal/presence'
@@ -857,6 +895,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface MonitoringRouteChildren {
+  MonitoringEventsRoute: typeof MonitoringEventsRoute
+  MonitoringEventsEventIdRoute: typeof MonitoringEventsEventIdRoute
+}
+
+const MonitoringRouteChildren: MonitoringRouteChildren = {
+  MonitoringEventsRoute: MonitoringEventsRoute,
+  MonitoringEventsEventIdRoute: MonitoringEventsEventIdRoute,
+}
+
+const MonitoringRouteWithChildren = MonitoringRoute._addFileChildren(
+  MonitoringRouteChildren,
+)
+
 interface ApiSecurityAlertsAlertIdRouteChildren {
   ApiSecurityAlertsAlertIdCommentsRoute: typeof ApiSecurityAlertsAlertIdCommentsRoute
   ApiSecurityAlertsAlertIdStatusRoute: typeof ApiSecurityAlertsAlertIdStatusRoute
@@ -917,7 +969,7 @@ const rootRouteChildren: RootRouteChildren = {
   LicenseRoute: LicenseRoute,
   LoginRoute: LoginRoute,
   LogsRoute: LogsRoute,
-  MonitoringRoute: MonitoringRoute,
+  MonitoringRoute: MonitoringRouteWithChildren,
   PoliciesRoute: PoliciesRoute,
   ProfileRoute: ProfileRoute,
   TemplatesRoute: TemplatesRoute,

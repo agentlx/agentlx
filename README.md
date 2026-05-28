@@ -706,6 +706,12 @@ curl -fsS "https://app.seudominio.com/api/security/events/export?machineId=machi
 curl -fsS "https://app.seudominio.com/api/security/events/export?machineId=machine-id&period=24h&format=json" -o security-events.json
 ```
 
+Rotas de frontend relacionadas:
+
+- `https://app.seudominio.com/monitoring`
+- `https://app.seudominio.com/monitoring/events`
+- `https://app.seudominio.com/monitoring/events/sevt_event-id`
+
 A listagem enriquecida nao retorna `raw` de logs. Linhas brutas aparecem apenas
 no detalhe do evento, onde devem ser tratadas como dados sensiveis.
 
