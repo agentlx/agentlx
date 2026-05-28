@@ -222,7 +222,11 @@ download_file() {
   local output="$2"
 
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "${url}" -o "${output}"
+    if [ -n "${ENROLLMENT_TOKEN}" ]; then
+      curl -fsSL -H "x-agent-enrollment-token: ${ENROLLMENT_TOKEN}" "${url}" -o "${output}"
+    else
+      curl -fsSL "${url}" -o "${output}"
+    fi
     return
   fi
 

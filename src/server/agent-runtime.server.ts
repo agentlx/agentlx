@@ -23,6 +23,10 @@ export type AgentRuntimeManifest = {
   files: AgentRuntimeManifestEntry[];
 };
 
+type AgentRuntimeFileOptions = {
+  includeEnterpriseExtensions?: boolean;
+};
+
 function normalizeRuntimePath(relativePath: string) {
   const normalized = path.posix.normalize(relativePath.replaceAll("\\", "/")).replace(/^\/+/, "");
   if (
@@ -101,9 +105,11 @@ async function listBaseAgentRuntimeFiles() {
     .sort((left, right) => left.localeCompare(right, "en"));
 }
 
-export async function listAgentRuntimeFiles() {
+export async function listAgentRuntimeFiles(options: AgentRuntimeFileOptions = {}) {
   const baseFiles = await listBaseAgentRuntimeFiles();
-  const extensionFiles = await listEnterpriseRuntimeExtensionFiles();
+  const extensionFiles = options.includeEnterpriseExtensions
+    ? await listEnterpriseRuntimeExtensionFiles()
+    : [];
   const baseFileSet = new Set(baseFiles);
   const extensionPaths = extensionFiles
     .map((item) => item.path)
@@ -112,10 +118,14 @@ export async function listAgentRuntimeFiles() {
   return [...baseFiles, ...extensionPaths].sort((left, right) => left.localeCompare(right, "en"));
 }
 
-export async function getAgentRuntimeManifest(): Promise<AgentRuntimeManifest> {
-  const files = await listAgentRuntimeFiles();
+export async function getAgentRuntimeManifest(
+  options: AgentRuntimeFileOptions = {},
+): Promise<AgentRuntimeManifest> {
+  const files = await listAgentRuntimeFiles(options);
   const extensionFiles = new Map(
-    (await listEnterpriseRuntimeExtensionFiles()).map((file) => [file.path, file]),
+    (options.includeEnterpriseExtensions ? await listEnterpriseRuntimeExtensionFiles() : []).map(
+      (file) => [file.path, file],
+    ),
   );
   const entries = await Promise.all(
     files.map(async (relativePath) => {
@@ -139,9 +149,12 @@ export async function getAgentRuntimeManifest(): Promise<AgentRuntimeManifest> {
   };
 }
 
-export async function readAgentRuntimeFile(relativePath: string) {
+export async function readAgentRuntimeFile(
+  relativePath: string,
+  options: AgentRuntimeFileOptions = {},
+) {
   const normalizedPath = normalizeRuntimePath(relativePath);
-  const files = await listAgentRuntimeFiles();
+  const files = await listAgentRuntimeFiles(options);
   if (!files.includes(normalizedPath)) {
     throw new Error("Arquivo de runtime nao encontrado.");
   }

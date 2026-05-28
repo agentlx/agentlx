@@ -117,7 +117,7 @@ function MonitoringEventsPage() {
   const dashboard = Route.useLoaderData();
   const loadOverview = useServerFn(getSecurityMachineEventsOverviewData);
   const exportEvents = useServerFn(exportSecurityEventsData);
-  const initialMachineId = dashboard.topMachines[0]?.machineId ?? "";
+  const initialMachineId = dashboard.machineOptions[0]?.machineId ?? "";
   const [filters, setFilters] = useState<EventFilters>({
     machineId: initialMachineId,
     period: "24h",
@@ -133,7 +133,7 @@ function MonitoringEventsPage() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const machineOptions = useMemo(() => dashboard.topMachines, [dashboard.topMachines]);
+  const machineOptions = useMemo(() => dashboard.machineOptions, [dashboard.machineOptions]);
 
   useEffect(() => {
     if (!filters.machineId) {

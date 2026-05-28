@@ -3,6 +3,7 @@ import { updateSecurityRuleSchema } from "@/lib/security-monitoring";
 import { requireScreenAccess } from "@/server/auth.server";
 import { updateEnterpriseSecurityRule } from "@/server/edition.server";
 import { jsonError, jsonResponse } from "@/server/http.server";
+import { assertTrustedCookieRequest } from "@/server/http-security.server";
 import {
   BODY_LIMITS,
   getErrorStatusCode,
@@ -19,7 +20,13 @@ export const Route = createFileRoute("/api/security/rules/$ruleId")({
     handlers: {
       PATCH: async ({ request, params }) => {
         try {
+          assertTrustedCookieRequest(request);
           const viewer = await requireScreenAccess("monitoring");
+          if (viewer.role !== "admin") {
+            throw Object.assign(new Error("Esta operacao e restrita a administradores."), {
+              statusCode: 403,
+            });
+          }
           const unavailable = await securityMonitoringFeatureGate();
           if (unavailable) {
             return unavailable;

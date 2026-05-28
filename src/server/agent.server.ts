@@ -230,6 +230,24 @@ async function loadEnrollmentToken(
   return result.rows[0] ?? null;
 }
 
+export async function validateAgentEnrollmentToken(enrollmentToken: string | null | undefined) {
+  const token = enrollmentToken?.trim();
+  if (!token) {
+    return false;
+  }
+
+  const enrollment = await loadEnrollmentToken(
+    { query: (text, params) => dbQuery<EnrollmentTokenRow>(text, params) },
+    await sha256Hex(token),
+  );
+  if (!enrollment) {
+    return false;
+  }
+
+  const expiresAt = new Date(enrollment.expires_at).getTime();
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
+}
+
 async function loadAgentById(agentId: string) {
   const result = await dbQuery<AgentRow>(
     `

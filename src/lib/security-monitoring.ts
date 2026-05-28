@@ -422,6 +422,12 @@ export type SecurityDashboardView = {
     highAlerts: number;
     lastSeenAt: string;
   }>;
+  machineOptions: Array<{
+    machineId: string;
+    hostname: string;
+    os: string;
+    lastSeenAt: string;
+  }>;
   topSourceIps: Array<{
     srcIp: string;
     totalEvents: number;

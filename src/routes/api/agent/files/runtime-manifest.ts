@@ -1,13 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonError, jsonResponse } from "@/server/http.server";
 import { getAgentRuntimeManifest } from "@/server/agent-runtime.server";
+import { authenticateAgentRequest, validateAgentEnrollmentToken } from "@/server/agent.server";
+
+async function canReadEnterpriseRuntime(request: Request, requestPath: string) {
+  if (await validateAgentEnrollmentToken(request.headers.get("x-agent-enrollment-token"))) {
+    return true;
+  }
+
+  try {
+    await authenticateAgentRequest(request, requestPath, "");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export const Route = createFileRoute("/api/agent/files/runtime-manifest")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         try {
-          return jsonResponse(await getAgentRuntimeManifest(), {
+          const includeEnterpriseExtensions = await canReadEnterpriseRuntime(
+            request,
+            "/api/agent/files/runtime-manifest",
+          );
+          return jsonResponse(await getAgentRuntimeManifest({ includeEnterpriseExtensions }), {
             headers: {
               "cache-control": "no-store",
             },

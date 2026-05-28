@@ -148,7 +148,58 @@ resolve_remote_urls() {
 download_file() {
   local url="$1"
   local output="$2"
-  curl -fsSL "${url}" -o "${output}"
+
+  python3 - "${INSTALL_DIR}/config.json" "${url}" "${output}" <<'PY'
+import base64
+import hashlib
+import hmac
+import json
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+import uuid
+from datetime import datetime, timezone
+
+config_path, url, output = sys.argv[1:]
+with open(config_path, "r", encoding="utf-8") as handle:
+    config = json.load(handle)
+
+agent_id = str(config.get("agent_id") or "").strip()
+agent_secret = str(config.get("agent_secret") or "").strip()
+headers = {"User-Agent": "agentlx-linux-update/0.1"}
+
+if agent_id and agent_secret:
+    parsed = urllib.parse.urlparse(url)
+    request_path = parsed.path
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    nonce = uuid.uuid4().hex
+    body_hash = hashlib.sha256(b"").hexdigest()
+    payload = "\n".join(["GET", request_path, timestamp, nonce, body_hash]).encode("utf-8")
+    digest = hmac.new(agent_secret.encode("utf-8"), payload, hashlib.sha256).digest()
+    signature = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    headers.update(
+        {
+            "Authorization": f"Agent {agent_id}",
+            "x-agent-auth-version": "v2",
+            "x-agent-auth-timestamp": timestamp,
+            "x-agent-auth-nonce": nonce,
+            "x-agent-auth-signature": signature,
+        }
+    )
+
+request = urllib.request.Request(url, headers=headers, method="GET")
+try:
+    with urllib.request.urlopen(request, timeout=30) as response:
+        data = response.read()
+except urllib.error.HTTPError as exc:
+    body = exc.read().decode("utf-8", errors="ignore")
+    print(f"HTTP {exc.code} ao baixar {url}: {body}", file=sys.stderr)
+    sys.exit(1)
+
+with open(output, "wb") as handle:
+    handle.write(data)
+PY
 }
 
 verify_file_sha256() {

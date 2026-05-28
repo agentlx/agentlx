@@ -713,7 +713,24 @@ Rotas de frontend relacionadas:
 - `https://app.seudominio.com/monitoring/events/sevt_event-id`
 
 A listagem enriquecida nao retorna `raw` de logs. Linhas brutas aparecem apenas
-no detalhe do evento, onde devem ser tratadas como dados sensiveis.
+no detalhe do evento para administradores, onde devem ser tratadas como dados
+sensiveis. Usuarios membros recebem atributos sensiveis redigidos no backend.
+
+Mutations de monitoramento, como comentar alertas, alterar status e atualizar
+regras, devem ser chamadas somente pela origem configurada em `APP_ORIGIN`.
+Atualizacao de regras e um controle administrativo e deve permanecer restrita a
+administradores.
+
+Validacao operacional do runtime Enterprise do agent:
+
+```bash
+curl -fsS "https://app.seudominio.com/api/agent/files/runtime-manifest"
+curl -fsS -H "x-agent-enrollment-token: TOKEN" "https://app.seudominio.com/api/agent/files/runtime-manifest"
+bash /opt/agentlx/update.sh --no-restart
+```
+
+Sem token de enrollment valido ou assinatura v2 do agent, o manifesto publico
+nao deve listar arquivos privados `agentlx_enterprise/*`.
 
 ---
 
