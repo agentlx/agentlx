@@ -57,7 +57,7 @@ def ensure_single_instance() -> None:
 
 
 def build_systemd_unit() -> str:
-    python_bin = Path(sys.executable).resolve()
+    python_bin = Path(sys.executable).absolute()
     agent_script = (ROOT / "agent.py").resolve()
     working_dir = ROOT.resolve()
     return f"""[Unit]

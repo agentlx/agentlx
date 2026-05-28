@@ -661,6 +661,11 @@ Se o túnel do terminal não iniciar, o agent não deve parar o ciclo principal:
 heartbeat, fila de execução e extensões Enterprise continuam ativos. Depois de
 atualizar, confirme nos logs do serviço a linha `[agent][tunnel] conectado`.
 
+O `ExecStart` do systemd deve apontar para `/opt/agentlx/.venv/bin/python`.
+Se aparecer `/usr/bin/python3` ou erro de dependência ausente para
+`websockets`, rode o `update.sh` novamente para regenerar a unit com a
+virtualenv correta.
+
 ### O host Linux é muito antigo
 
 Ambientes legados podem falhar por:

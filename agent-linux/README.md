@@ -162,6 +162,11 @@ Se o tunel WebSocket nao iniciar, o agent deve continuar mantendo heartbeat,
 poll da fila e extensoes Enterprise. Apos atualizar, confirme nos logs a linha
 `[agent][tunnel] conectado`.
 
+O `ExecStart` do systemd deve apontar para `/opt/agentlx/.venv/bin/python`.
+Se aparecer `/usr/bin/python3` ou erro de dependencia ausente para
+`websockets`, rode o `update.sh` novamente para regenerar a unit com a
+virtualenv correta.
+
 ## Requisitos minimos
 
 Para o instalador automatico e o agent funcionarem corretamente, o host precisa ter perfil de sistema moderno:
