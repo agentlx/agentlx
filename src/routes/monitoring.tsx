@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Activity,
@@ -109,6 +109,7 @@ const mitreColors = ["#3b82f6", "#14b8a6", "#f59e0b", "#a855f7", "#ef4444", "#94
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
 function MonitoringPage() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const initialDashboard = Route.useLoaderData();
   const loadDashboard = useServerFn(getSecurityDashboardData);
   const [dashboard, setDashboard] = useState<SecurityDashboardView>(initialDashboard);
@@ -200,6 +201,10 @@ function MonitoringPage() {
   const updatePeriod = (period: SecurityDashboardPeriod) => {
     void applyFilters({ ...filters, period });
   };
+
+  if (pathname !== "/monitoring") {
+    return <Outlet />;
+  }
 
   return (
     <AppShell breadcrumb={<Crumb items={[{ label: "root", to: "/" }, { label: "monitoring" }]} />}>
