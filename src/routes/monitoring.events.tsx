@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Activity,
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -229,13 +228,20 @@ function MonitoringEventsPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to="/monitoring"
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold transition-colors hover:bg-secondary"
-            >
-              <ArrowLeft className="size-3.5" />
-              Voltar para dashboard
-            </Link>
+            <div className="flex rounded-lg border border-border bg-surface p-1 text-xs">
+              <Link
+                to="/monitoring"
+                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground"
+              >
+                Eventos
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => void applyFilters(filters, offset)}
