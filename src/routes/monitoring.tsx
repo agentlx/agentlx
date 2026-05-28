@@ -50,13 +50,14 @@ import { requireRouteScreen } from "@/lib/route-protection";
 export const Route = createFileRoute("/monitoring")({
   loader: async () => {
     const viewer = await requireRouteScreen("monitoring");
-    const dashboard = await getSecurityDashboardData({ data: { period: "24h" } });
-    const rules =
+    const [dashboard, rules] = await Promise.all([
+      getSecurityDashboardData({ data: { period: "24h" } }),
       viewer.role === "admin"
-        ? ((await listSecurityRulesData({
+        ? (listSecurityRulesData({
             data: { limit: 100, offset: 0, enabled: "all" },
-          })) as { items: SecurityRuleView[] })
-        : null;
+          }) as Promise<{ items: SecurityRuleView[] }>)
+        : Promise.resolve(null),
+    ]);
     return {
       viewer,
       dashboard,

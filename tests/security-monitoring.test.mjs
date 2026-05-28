@@ -28,6 +28,13 @@ test("security monitoring exposes alert actions and admin-only rule actions", ()
   assert.match(detail, /Adicionar anotacao/);
 });
 
+test("monitoring dashboard loads admin rules without serial request waterfall", () => {
+  const dashboard = read("src/routes/monitoring.tsx");
+
+  assert.match(dashboard, /const \[dashboard, rules\] = await Promise\.all\(/);
+  assert.match(dashboard, /viewer\.role === "admin"/);
+});
+
 test("events view offers csv and json exports", () => {
   const events = read("src/routes/monitoring.events.tsx");
 
