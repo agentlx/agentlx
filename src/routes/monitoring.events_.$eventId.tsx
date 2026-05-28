@@ -17,15 +17,22 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { AppShell, Crumb } from "@/components/AppShell";
+import { toast } from "@/components/ui/sonner";
 import { APP_NAME } from "@/lib/brand";
 import {
+  securityAlertStatusValues,
+  type SecurityAlertStatus,
   type SecurityEventComputedStatus,
   type SecurityEventDetailView,
   type SecurityEventEvidenceView,
   type SecurityEventTimelineItemView,
   type SecuritySeverity,
 } from "@/lib/security-monitoring";
-import { getSecurityEventDetailData } from "@/lib/security-monitoring-api";
+import {
+  createSecurityAlertCommentData,
+  getSecurityEventDetailData,
+  updateSecurityAlertStatusData,
+} from "@/lib/security-monitoring-api";
 import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/monitoring/events_/$eventId")({
@@ -81,8 +88,13 @@ function SecurityEventDetailPage() {
   const initialDetail = Route.useLoaderData();
   const params = Route.useParams();
   const loadDetail = useServerFn(getSecurityEventDetailData);
+  const updateAlertStatus = useServerFn(updateSecurityAlertStatusData);
+  const createAlertComment = useServerFn(createSecurityAlertCommentData);
   const [detail, setDetail] = useState<SecurityEventDetailView>(initialDetail);
   const [loading, setLoading] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentBody, setCommentBody] = useState("");
   const [copied, setCopied] = useState(false);
   const payloadJson = useMemo(() => JSON.stringify(detail.event.payload, null, 2), [detail]);
 
@@ -93,6 +105,46 @@ function SecurityEventDetailPage() {
       setDetail(nextDetail);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const changeAlertStatus = async (status: SecurityAlertStatus) => {
+    if (!detail.alert) {
+      return;
+    }
+    setStatusSaving(true);
+    try {
+      await updateAlertStatus({ data: { alertId: detail.alert.id, status } });
+      const nextDetail = await loadDetail({ data: { eventId: params.eventId } });
+      setDetail(nextDetail);
+      toast.success("Status do alerta atualizado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nao foi possivel atualizar o alerta.");
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+  const submitComment = async () => {
+    if (!detail.alert) {
+      return;
+    }
+    const body = commentBody.trim();
+    if (!body) {
+      toast.error("Digite uma anotacao para o alerta.");
+      return;
+    }
+    setCommentSaving(true);
+    try {
+      await createAlertComment({ data: { alertId: detail.alert.id, body } });
+      const nextDetail = await loadDetail({ data: { eventId: params.eventId } });
+      setDetail(nextDetail);
+      setCommentBody("");
+      toast.success("Anotacao adicionada ao alerta.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nao foi possivel comentar o alerta.");
+    } finally {
+      setCommentSaving(false);
     }
   };
 
@@ -271,6 +323,19 @@ function SecurityEventDetailPage() {
             <Panel title="Classificacao">
               <ClassificationPanel detail={detail} />
             </Panel>
+            {detail.alert && (
+              <Panel title="Gestao do alerta">
+                <AlertActionsPanel
+                  detail={detail}
+                  statusSaving={statusSaving}
+                  commentSaving={commentSaving}
+                  commentBody={commentBody}
+                  onStatusChange={(status) => void changeAlertStatus(status)}
+                  onCommentBodyChange={setCommentBody}
+                  onSubmitComment={() => void submitComment()}
+                />
+              </Panel>
+            )}
             <Panel title="Acoes seguras">
               <SafeActions detail={detail} onCopyJson={() => void copyJson()} copied={copied} />
             </Panel>
@@ -547,6 +612,68 @@ function ClassificationPanel({ detail }: { detail: SecurityEventDetailView }) {
         tone={context.confidence === "high" ? "success" : undefined}
       />
     </dl>
+  );
+}
+
+function AlertActionsPanel({
+  detail,
+  statusSaving,
+  commentSaving,
+  commentBody,
+  onStatusChange,
+  onCommentBodyChange,
+  onSubmitComment,
+}: {
+  detail: SecurityEventDetailView;
+  statusSaving: boolean;
+  commentSaving: boolean;
+  commentBody: string;
+  onStatusChange: (status: SecurityAlertStatus) => void;
+  onCommentBodyChange: (value: string) => void;
+  onSubmitComment: () => void;
+}) {
+  const alert = detail.alert;
+  if (!alert) {
+    return <EmptyList label="Este evento nao possui alerta vinculado." />;
+  }
+
+  return (
+    <div className="space-y-4 text-sm">
+      <label className="grid gap-1 text-[11px] font-semibold text-muted-foreground">
+        Status
+        <select
+          value={alert.status}
+          disabled={statusSaving}
+          onChange={(event) => onStatusChange(event.target.value as SecurityAlertStatus)}
+          className="h-10 rounded-md border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-primary disabled:opacity-60"
+        >
+          {securityAlertStatusValues.map((status) => (
+            <option key={status} value={status}>
+              {statusLabels[status]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="grid gap-1 text-[11px] font-semibold text-muted-foreground">
+        Anotacao
+        <textarea
+          value={commentBody}
+          onChange={(event) => onCommentBodyChange(event.target.value)}
+          rows={4}
+          maxLength={2000}
+          className="min-h-24 resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+          placeholder="Registrar analise ou proxima acao..."
+        />
+      </label>
+      <button
+        type="button"
+        onClick={onSubmitComment}
+        disabled={commentSaving || commentBody.trim().length === 0}
+        className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+      >
+        {commentSaving ? "Salvando..." : "Adicionar anotacao"}
+      </button>
+    </div>
   );
 }
 

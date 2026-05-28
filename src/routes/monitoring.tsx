@@ -28,6 +28,7 @@ import {
   YAxis,
 } from "recharts";
 import { AppShell, Crumb } from "@/components/AppShell";
+import { toast } from "@/components/ui/sonner";
 import { APP_NAME } from "@/lib/brand";
 import {
   securityAlertStatusValues,
@@ -36,15 +37,31 @@ import {
   type SecurityDashboardInput,
   type SecurityDashboardPeriod,
   type SecurityDashboardView,
+  type SecurityRuleView,
   type SecuritySeverity,
 } from "@/lib/security-monitoring";
-import { getSecurityDashboardData } from "@/lib/security-monitoring-api";
+import {
+  getSecurityDashboardData,
+  listSecurityRulesData,
+  updateSecurityRuleData,
+} from "@/lib/security-monitoring-api";
 import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/monitoring")({
   loader: async () => {
-    await requireRouteScreen("monitoring");
-    return getSecurityDashboardData({ data: { period: "24h" } });
+    const viewer = await requireRouteScreen("monitoring");
+    const dashboard = await getSecurityDashboardData({ data: { period: "24h" } });
+    const rules =
+      viewer.role === "admin"
+        ? ((await listSecurityRulesData({
+            data: { limit: 100, offset: 0, enabled: "all" },
+          })) as { items: SecurityRuleView[] })
+        : null;
+    return {
+      viewer,
+      dashboard,
+      rules: rules?.items ?? [],
+    };
   },
   head: () => ({
     meta: [
@@ -110,9 +127,12 @@ const numberFormatter = new Intl.NumberFormat("pt-BR");
 
 function MonitoringPage() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const initialDashboard = Route.useLoaderData();
+  const { viewer, dashboard: initialDashboard, rules: initialRules } = Route.useLoaderData();
   const loadDashboard = useServerFn(getSecurityDashboardData);
+  const loadRules = useServerFn(listSecurityRulesData);
+  const updateRule = useServerFn(updateSecurityRuleData);
   const [dashboard, setDashboard] = useState<SecurityDashboardView>(initialDashboard);
+  const [rules, setRules] = useState<SecurityRuleView[]>(initialRules);
   const [filters, setFilters] = useState<DashboardFilters>({
     period: initialDashboard.period,
     machineId: "",
@@ -123,6 +143,7 @@ function MonitoringPage() {
     minLevel: "",
   });
   const [loading, setLoading] = useState(false);
+  const [ruleSavingId, setRuleSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const areaData = useMemo(
@@ -200,6 +221,24 @@ function MonitoringPage() {
 
   const updatePeriod = (period: SecurityDashboardPeriod) => {
     void applyFilters({ ...filters, period });
+  };
+
+  const toggleRule = async (rule: SecurityRuleView) => {
+    setRuleSavingId(rule.id);
+    try {
+      await updateRule({ data: { ruleId: rule.id, enabled: !rule.enabled } });
+      const nextRules = (await loadRules({
+        data: { limit: 100, offset: 0, enabled: "all" },
+      })) as { items: SecurityRuleView[] };
+      setRules(nextRules.items);
+      toast.success(`Regra ${!rule.enabled ? "habilitada" : "desabilitada"}.`);
+    } catch (updateError) {
+      toast.error(
+        updateError instanceof Error ? updateError.message : "Nao foi possivel atualizar a regra.",
+      );
+    } finally {
+      setRuleSavingId(null);
+    }
   };
 
   if (pathname !== "/monitoring") {
@@ -561,6 +600,91 @@ function MonitoringPage() {
             </div>
           </DataPanel>
         </section>
+
+        {viewer.role === "admin" && (
+          <section className="overflow-hidden rounded-lg border border-border bg-surface">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <div className="flex items-center gap-2">
+                <LockKeyhole className="size-4 text-primary" />
+                <h2 className="text-sm font-semibold">Regras de monitoramento</h2>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {numberFormatter.format(rules.length)} regras
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px] table-fixed text-left text-xs">
+                <thead className="border-b border-border bg-background/40 text-[10px] uppercase tracking-widest text-muted-foreground">
+                  <tr>
+                    <th className="w-40 px-4 py-3">Status</th>
+                    <th className="w-52 px-3 py-3">Regra</th>
+                    <th className="px-3 py-3">Descricao</th>
+                    <th className="w-36 px-3 py-3">Evento</th>
+                    <th className="w-32 px-3 py-3">MITRE</th>
+                    <th className="w-28 px-4 py-3 text-right">Nivel</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {rules.map((rule) => (
+                    <tr key={rule.id} className="transition-colors hover:bg-white/[0.02]">
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => void toggleRule(rule)}
+                          disabled={ruleSavingId === rule.id}
+                          className={`inline-flex h-8 min-w-28 items-center justify-center rounded-md border px-3 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                            rule.enabled
+                              ? "border-success/30 bg-success/10 text-success hover:bg-success/15"
+                              : "border-border bg-background text-muted-foreground hover:bg-secondary"
+                          }`}
+                        >
+                          {ruleSavingId === rule.id
+                            ? "Salvando..."
+                            : rule.enabled
+                              ? "Habilitada"
+                              : "Desabilitada"}
+                        </button>
+                      </td>
+                      <td className="px-3 py-3">
+                        <p className="truncate font-medium">{rule.name}</p>
+                        <p className="truncate font-mono text-[10px] text-muted-foreground">
+                          {rule.id}
+                        </p>
+                      </td>
+                      <td className="px-3 py-3">
+                        <p className="truncate text-muted-foreground">{rule.description}</p>
+                      </td>
+                      <td className="truncate px-3 py-3 font-mono text-[11px] text-muted-foreground">
+                        {rule.eventType ?? rule.ruleKind}
+                      </td>
+                      <td className="px-3 py-3">
+                        <p className="truncate font-mono text-[11px]">
+                          {rule.mitreTechniqueId ?? "-"}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {rule.mitreTechnique ?? "-"}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <SeverityBadge severity={rule.severity} level={rule.level} />
+                      </td>
+                    </tr>
+                  ))}
+                  {rules.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-10 text-center text-sm text-muted-foreground"
+                      >
+                        Nenhuma regra configurada.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         <section className="overflow-hidden rounded-lg border border-border bg-surface">
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">

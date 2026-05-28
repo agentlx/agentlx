@@ -503,7 +503,16 @@ function MonitoringEventsPage() {
                     className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs font-semibold transition-colors hover:bg-secondary disabled:opacity-60"
                   >
                     <Download className="size-3.5" />
-                    Exportar
+                    CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void exportCurrent("json")}
+                    disabled={exporting || !overview}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs font-semibold transition-colors hover:bg-secondary disabled:opacity-60"
+                  >
+                    <Download className="size-3.5" />
+                    JSON
                   </button>
                 </div>
               </div>
