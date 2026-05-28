@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/agent/files/runtime")({
             },
           });
         } catch {
-          return jsonError("Nao foi possivel carregar o arquivo do runtime.", 500);
+          return jsonError("Arquivo de runtime nao encontrado.", 404);
         }
       },
     },
