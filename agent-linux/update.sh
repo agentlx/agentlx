@@ -383,7 +383,7 @@ main() {
 
   local tmp_dir runtime_dir manifest_file
   tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "${tmp_dir}"' EXIT
+  trap "rm -rf '${tmp_dir}'" EXIT
   runtime_dir="${tmp_dir}/runtime"
   manifest_file="${tmp_dir}/runtime-manifest.json"
   mkdir -p "${runtime_dir}"

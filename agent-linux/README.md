@@ -167,6 +167,10 @@ Se aparecer `/usr/bin/python3` ou erro de dependencia ausente para
 `websockets`, rode o `update.sh` novamente para regenerar a unit com a
 virtualenv correta.
 
+O `update.sh` usa um diretorio temporario por execucao e deve finalizar sem
+erro de cleanup como `tmp_dir: unbound variable`; se isso aparecer, baixe o
+atualizador mais recente pela API e execute novamente.
+
 ## Requisitos minimos
 
 Para o instalador automatico e o agent funcionarem corretamente, o host precisa ter perfil de sistema moderno:
