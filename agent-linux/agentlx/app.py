@@ -94,7 +94,14 @@ def run_loop(config: dict[str, Any], collector: SnapshotCollector) -> None:
     wake_event = threading.Event()
     tunnel = RealtimeTunnelClient(config, wake_event=wake_event)
     extensions = load_enterprise_extensions(config)
-    tunnel.start()
+    tunnel_started = False
+    try:
+        tunnel.start()
+        tunnel_started = True
+    except SystemExit as exc:
+        print(f"[agent][tunnel] tunel desativado: {exc}", file=sys.stderr)
+    except Exception as exc:
+        print(f"[agent][tunnel] falha ao iniciar tunel: {exc}", file=sys.stderr)
     extensions.start()
     next_heartbeat_at = 0.0
     print(
@@ -138,7 +145,8 @@ def run_loop(config: dict[str, Any], collector: SnapshotCollector) -> None:
             wake_event.clear()
     finally:
         extensions.stop()
-        tunnel.stop()
+        if tunnel_started:
+            tunnel.stop()
 
 
 def run_foreground(config: dict[str, Any]) -> None:

@@ -647,6 +647,20 @@ Verifique:
 - se o proxy encaminha WebSocket;
 - se `APP_ORIGIN` bate exatamente com o domínio acessado pelo navegador.
 
+Comandos operacionais no host gerenciado:
+
+```bash
+sudo systemctl status agentlx --no-pager
+sudo journalctl -u agentlx -n 120 --no-pager
+sudo /opt/agentlx/.venv/bin/python -m pip show websockets
+curl -fsSL https://api.seudominio.com/api/agent/update.sh | sudo bash
+sudo systemctl restart agentlx
+```
+
+Se o túnel do terminal não iniciar, o agent não deve parar o ciclo principal:
+heartbeat, fila de execução e extensões Enterprise continuam ativos. Depois de
+atualizar, confirme nos logs do serviço a linha `[agent][tunnel] conectado`.
+
 ### O host Linux é muito antigo
 
 Ambientes legados podem falhar por:

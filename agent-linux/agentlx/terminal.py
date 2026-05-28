@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import errno
 import fcntl
+import inspect
 import json
 import os
 import pty
@@ -65,6 +66,22 @@ class RealtimeTunnelClient:
     def _run(self) -> None:
         asyncio.run(self._main())
 
+    def _connect(self, ws_url: str, headers: dict[str, str]) -> Any:
+        kwargs = {
+            "ping_interval": 20,
+            "ping_timeout": 20,
+            "max_size": None,
+            "compression": None,
+        }
+        try:
+            parameters = inspect.signature(websockets.connect).parameters
+        except (TypeError, ValueError):
+            parameters = {}
+
+        header_arg = "additional_headers" if "additional_headers" in parameters else "extra_headers"
+        kwargs[header_arg] = headers
+        return websockets.connect(ws_url, **kwargs)
+
     async def _main(self) -> None:
         self.loop = asyncio.get_running_loop()
         while not self.stop_event.is_set():
@@ -97,14 +114,7 @@ class RealtimeTunnelClient:
             ),
             "User-Agent": AGENT_HTTP_USER_AGENT,
         }
-        async with websockets.connect(
-            ws_url,
-            additional_headers=headers,
-            ping_interval=20,
-            ping_timeout=20,
-            max_size=None,
-            compression=None,
-        ) as websocket:
+        async with self._connect(ws_url, headers) as websocket:
             print(f"[agent][tunnel] conectado em {ws_url}")
             async for raw_message in websocket:
                 try:

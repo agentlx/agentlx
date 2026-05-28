@@ -148,6 +148,20 @@ Uso tipico:
 curl -fsSL https://api.seudominio.com/api/agent/update.sh | sudo bash
 ```
 
+Diagnostico operacional do servico e do tunel:
+
+```bash
+sudo systemctl status agentlx --no-pager
+sudo journalctl -u agentlx -n 120 --no-pager
+sudo /opt/agentlx/.venv/bin/python -m pip show websockets
+curl -fsSL https://api.seudominio.com/api/agent/update.sh | sudo bash
+sudo systemctl restart agentlx
+```
+
+Se o tunel WebSocket nao iniciar, o agent deve continuar mantendo heartbeat,
+poll da fila e extensoes Enterprise. Apos atualizar, confirme nos logs a linha
+`[agent][tunnel] conectado`.
+
 ## Requisitos minimos
 
 Para o instalador automatico e o agent funcionarem corretamente, o host precisa ter perfil de sistema moderno:
