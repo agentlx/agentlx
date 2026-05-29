@@ -24,6 +24,33 @@ export const securityEventComputedStatusValues = [
 export type SecurityEventComputedStatus = (typeof securityEventComputedStatusValues)[number];
 
 const optionalLevelSchema = z.coerce.number().int().min(0).max(15).optional();
+const optionalCanonicalBooleanFilterSchema = z.enum(["true", "false"]).optional();
+
+const canonicalInvestigationFilterSchema = z.object({
+  eventFamily: z.string().trim().min(1).max(80).optional(),
+  actorUser: z.string().trim().min(1).max(120).optional(),
+  process: z.string().trim().min(1).max(160).optional(),
+  srcIp: z.string().trim().min(1).max(120).optional(),
+  dstIp: z.string().trim().min(1).max(120).optional(),
+  port: z.coerce.number().int().min(1).max(65535).optional(),
+  file: z.string().trim().min(1).max(500).optional(),
+  service: z.string().trim().min(1).max(180).optional(),
+  riskLevel: z.enum(["informational", "low", "medium", "high", "critical"]).optional(),
+  minRiskScore: z.coerce.number().int().min(0).max(100).optional(),
+  confidence: z.enum(["low", "medium", "high"]).optional(),
+  isRoot: optionalCanonicalBooleanFilterSchema,
+  isSudo: optionalCanonicalBooleanFilterSchema,
+  isSystemUser: optionalCanonicalBooleanFilterSchema,
+  isExternalIp: optionalCanonicalBooleanFilterSchema,
+  isPrivateIp: optionalCanonicalBooleanFilterSchema,
+  isSensitiveFile: optionalCanonicalBooleanFilterSchema,
+  isPersistenceSignal: optionalCanonicalBooleanFilterSchema,
+  isPrivilegeEscalationSignal: optionalCanonicalBooleanFilterSchema,
+  isTmpExecution: optionalCanonicalBooleanFilterSchema,
+  isSuspiciousProcess: optionalCanonicalBooleanFilterSchema,
+  isSuspiciousCommand: optionalCanonicalBooleanFilterSchema,
+  isLateralMovementSignal: optionalCanonicalBooleanFilterSchema,
+});
 
 export const securityEventSchema = z.object({
   eventType: z
@@ -62,24 +89,28 @@ export const securityAlertListInputSchema = z.object({
   to: z.string().datetime().optional(),
 });
 
-export const securityEventListInputSchema = securityAlertListInputSchema.omit({
-  status: true,
-  ruleId: true,
-});
+export const securityEventListInputSchema = securityAlertListInputSchema
+  .omit({
+    status: true,
+    ruleId: true,
+  })
+  .merge(canonicalInvestigationFilterSchema);
 
-export const securityMachineEventsInputSchema = z.object({
-  machineId: z.string().trim().min(1).max(120),
-  period: z.enum(securityDashboardPeriodValues).default("24h"),
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
-  offset: z.coerce.number().int().min(0).max(100_000).default(0),
-  search: z.string().trim().max(200).default(""),
-  severity: z.enum(["all", ...securitySeverityValues]).default("all"),
-  status: z.enum(["all", ...securityEventComputedStatusValues]).default("all"),
-  eventType: z.string().trim().min(1).max(120).optional(),
-  source: z.string().trim().min(1).max(120).optional(),
-});
+export const securityMachineEventsInputSchema = z
+  .object({
+    machineId: z.string().trim().min(1).max(120),
+    period: z.enum(securityDashboardPeriodValues).default("24h"),
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+    offset: z.coerce.number().int().min(0).max(100_000).default(0),
+    search: z.string().trim().max(200).default(""),
+    severity: z.enum(["all", ...securitySeverityValues]).default("all"),
+    status: z.enum(["all", ...securityEventComputedStatusValues]).default("all"),
+    eventType: z.string().trim().min(1).max(120).optional(),
+    source: z.string().trim().min(1).max(120).optional(),
+  })
+  .merge(canonicalInvestigationFilterSchema);
 
 export const securityEventExportInputSchema = securityMachineEventsInputSchema.extend({
   format: z.enum(["csv", "json"]).default("csv"),
