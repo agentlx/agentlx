@@ -20,11 +20,15 @@ import { Route as LicenseRouteImport } from './routes/license'
 import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MachinesIndexRouteImport } from './routes/machines.index'
+import { Route as MonitoringRulesRouteImport } from './routes/monitoring.rules'
+import { Route as MonitoringMachinesRouteImport } from './routes/monitoring.machines'
 import { Route as MonitoringEventsRouteImport } from './routes/monitoring.events'
+import { Route as MonitoringAlertsRouteImport } from './routes/monitoring.alerts'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
 import { Route as ApiProfilePhotoRouteImport } from './routes/api/profile-photo'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiDeploymentStatusRouteImport } from './routes/api/deployment-status'
+import { Route as MonitoringMachinesMachineIdRouteImport } from './routes/monitoring.machines.$machineId'
 import { Route as MonitoringEventsEventIdRouteImport } from './routes/monitoring.events_.$eventId'
 import { Route as ApiTerminalPresenceRouteImport } from './routes/api/terminal/presence'
 import { Route as ApiTerminalCloseRouteImport } from './routes/api/terminal/close'
@@ -108,9 +112,24 @@ const MachinesIndexRoute = MachinesIndexRouteImport.update({
   path: '/machines/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitoringRulesRoute = MonitoringRulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
+  getParentRoute: () => MonitoringRoute,
+} as any)
+const MonitoringMachinesRoute = MonitoringMachinesRouteImport.update({
+  id: '/machines',
+  path: '/machines',
+  getParentRoute: () => MonitoringRoute,
+} as any)
 const MonitoringEventsRoute = MonitoringEventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => MonitoringRoute,
+} as any)
+const MonitoringAlertsRoute = MonitoringAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
   getParentRoute: () => MonitoringRoute,
 } as any)
 const MachinesMachineIdRoute = MachinesMachineIdRouteImport.update({
@@ -133,6 +152,12 @@ const ApiDeploymentStatusRoute = ApiDeploymentStatusRouteImport.update({
   path: '/api/deployment-status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitoringMachinesMachineIdRoute =
+  MonitoringMachinesMachineIdRouteImport.update({
+    id: '/$machineId',
+    path: '/$machineId',
+    getParentRoute: () => MonitoringMachinesRoute,
+  } as any)
 const MonitoringEventsEventIdRoute = MonitoringEventsEventIdRouteImport.update({
   id: '/events_/$eventId',
   path: '/events/$eventId',
@@ -293,7 +318,10 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/monitoring/alerts': typeof MonitoringAlertsRoute
   '/monitoring/events': typeof MonitoringEventsRoute
+  '/monitoring/machines': typeof MonitoringMachinesRouteWithChildren
+  '/monitoring/rules': typeof MonitoringRulesRoute
   '/machines/': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -308,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
   '/monitoring/events/$eventId': typeof MonitoringEventsEventIdRoute
+  '/monitoring/machines/$machineId': typeof MonitoringMachinesMachineIdRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -338,7 +367,10 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/monitoring/alerts': typeof MonitoringAlertsRoute
   '/monitoring/events': typeof MonitoringEventsRoute
+  '/monitoring/machines': typeof MonitoringMachinesRouteWithChildren
+  '/monitoring/rules': typeof MonitoringRulesRoute
   '/machines': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -353,6 +385,7 @@ export interface FileRoutesByTo {
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
   '/monitoring/events/$eventId': typeof MonitoringEventsEventIdRoute
+  '/monitoring/machines/$machineId': typeof MonitoringMachinesMachineIdRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -384,7 +417,10 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
+  '/monitoring/alerts': typeof MonitoringAlertsRoute
   '/monitoring/events': typeof MonitoringEventsRoute
+  '/monitoring/machines': typeof MonitoringMachinesRouteWithChildren
+  '/monitoring/rules': typeof MonitoringRulesRoute
   '/machines/': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -399,6 +435,7 @@ export interface FileRoutesById {
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
   '/monitoring/events_/$eventId': typeof MonitoringEventsEventIdRoute
+  '/monitoring/machines/$machineId': typeof MonitoringMachinesMachineIdRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -431,7 +468,10 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
+    | '/monitoring/alerts'
     | '/monitoring/events'
+    | '/monitoring/machines'
+    | '/monitoring/rules'
     | '/machines/'
     | '/api/agent/decommission'
     | '/api/agent/heartbeat'
@@ -446,6 +486,7 @@ export interface FileRouteTypes {
     | '/api/terminal/close'
     | '/api/terminal/presence'
     | '/monitoring/events/$eventId'
+    | '/monitoring/machines/$machineId'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -476,7 +517,10 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
+    | '/monitoring/alerts'
     | '/monitoring/events'
+    | '/monitoring/machines'
+    | '/monitoring/rules'
     | '/machines'
     | '/api/agent/decommission'
     | '/api/agent/heartbeat'
@@ -491,6 +535,7 @@ export interface FileRouteTypes {
     | '/api/terminal/close'
     | '/api/terminal/presence'
     | '/monitoring/events/$eventId'
+    | '/monitoring/machines/$machineId'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -521,7 +566,10 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/profile-photo'
     | '/machines/$machineId'
+    | '/monitoring/alerts'
     | '/monitoring/events'
+    | '/monitoring/machines'
+    | '/monitoring/rules'
     | '/machines/'
     | '/api/agent/decommission'
     | '/api/agent/heartbeat'
@@ -536,6 +584,7 @@ export interface FileRouteTypes {
     | '/api/terminal/close'
     | '/api/terminal/presence'
     | '/monitoring/events_/$eventId'
+    | '/monitoring/machines/$machineId'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -668,11 +717,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MachinesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monitoring/rules': {
+      id: '/monitoring/rules'
+      path: '/rules'
+      fullPath: '/monitoring/rules'
+      preLoaderRoute: typeof MonitoringRulesRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
+    '/monitoring/machines': {
+      id: '/monitoring/machines'
+      path: '/machines'
+      fullPath: '/monitoring/machines'
+      preLoaderRoute: typeof MonitoringMachinesRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
     '/monitoring/events': {
       id: '/monitoring/events'
       path: '/events'
       fullPath: '/monitoring/events'
       preLoaderRoute: typeof MonitoringEventsRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
+    '/monitoring/alerts': {
+      id: '/monitoring/alerts'
+      path: '/alerts'
+      fullPath: '/monitoring/alerts'
+      preLoaderRoute: typeof MonitoringAlertsRouteImport
       parentRoute: typeof MonitoringRoute
     }
     '/machines/$machineId': {
@@ -702,6 +772,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/deployment-status'
       preLoaderRoute: typeof ApiDeploymentStatusRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/monitoring/machines/$machineId': {
+      id: '/monitoring/machines/$machineId'
+      path: '/$machineId'
+      fullPath: '/monitoring/machines/$machineId'
+      preLoaderRoute: typeof MonitoringMachinesMachineIdRouteImport
+      parentRoute: typeof MonitoringMachinesRoute
     }
     '/monitoring/events_/$eventId': {
       id: '/monitoring/events_/$eventId'
@@ -895,13 +972,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface MonitoringMachinesRouteChildren {
+  MonitoringMachinesMachineIdRoute: typeof MonitoringMachinesMachineIdRoute
+}
+
+const MonitoringMachinesRouteChildren: MonitoringMachinesRouteChildren = {
+  MonitoringMachinesMachineIdRoute: MonitoringMachinesMachineIdRoute,
+}
+
+const MonitoringMachinesRouteWithChildren =
+  MonitoringMachinesRoute._addFileChildren(MonitoringMachinesRouteChildren)
+
 interface MonitoringRouteChildren {
+  MonitoringAlertsRoute: typeof MonitoringAlertsRoute
   MonitoringEventsRoute: typeof MonitoringEventsRoute
+  MonitoringMachinesRoute: typeof MonitoringMachinesRouteWithChildren
+  MonitoringRulesRoute: typeof MonitoringRulesRoute
   MonitoringEventsEventIdRoute: typeof MonitoringEventsEventIdRoute
 }
 
 const MonitoringRouteChildren: MonitoringRouteChildren = {
+  MonitoringAlertsRoute: MonitoringAlertsRoute,
   MonitoringEventsRoute: MonitoringEventsRoute,
+  MonitoringMachinesRoute: MonitoringMachinesRouteWithChildren,
+  MonitoringRulesRoute: MonitoringRulesRoute,
   MonitoringEventsEventIdRoute: MonitoringEventsEventIdRoute,
 }
 

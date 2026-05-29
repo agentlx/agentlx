@@ -5,6 +5,7 @@ import {
   securityDashboardInputSchema,
   securityEventDetailInputSchema,
   securityEventExportInputSchema,
+  securityAlertListInputSchema,
   securityMachineEventsInputSchema,
   securityRuleListInputSchema,
   updateSecurityAlertStatusSchema,
@@ -67,6 +68,21 @@ export const exportSecurityEventsData = createServerFn({ method: "GET" })
       ...data,
       principal: toSecurityPrincipal(viewer),
     });
+  });
+
+export const listSecurityAlertsData = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => securityAlertListInputSchema.parse(data ?? {}))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("monitoring");
+    const { listEnterpriseSecurityAlerts } = await import("@/server/edition.server");
+    const { toSecurityPrincipal } = await import("@/server/security-monitoring.server");
+
+    const alerts = await listEnterpriseSecurityAlerts({
+      ...data,
+      principal: toSecurityPrincipal(viewer),
+    });
+    return JSON.parse(JSON.stringify(alerts));
   });
 
 export const listSecurityRulesData = createServerFn({ method: "GET" })

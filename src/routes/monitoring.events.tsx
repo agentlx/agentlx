@@ -40,6 +40,7 @@ import {
   getSecurityDashboardData,
   getSecurityMachineEventsOverviewData,
 } from "@/lib/security-monitoring-api";
+import { MonitoringNav } from "@/lib/monitoring-ui";
 import { requireRouteScreen } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/monitoring/events")({
@@ -224,24 +225,11 @@ function MonitoringEventsPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Eventos por maquina</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Visualize eventos e alertas de uma maquina especifica.
+              Fluxo enxuto de eventos; atributos tecnicos ficam no detalhe.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-lg border border-border bg-surface p-1 text-xs">
-              <Link
-                to="/monitoring"
-                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                Dashboard
-              </Link>
-              <button
-                type="button"
-                className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground"
-              >
-                Eventos
-              </button>
-            </div>
+            <MonitoringNav active="/monitoring/events" />
             <button
               type="button"
               onClick={() => void applyFilters(filters, offset)}

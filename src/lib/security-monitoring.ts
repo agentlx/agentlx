@@ -423,6 +423,11 @@ export type SecurityDashboardView = {
     machineId: string;
     hostname: string;
     os: string;
+    status?: SecurityMonitoringMachineView["status"];
+    cpu?: number;
+    ramUsed?: number;
+    ramTotal?: number;
+    disk?: number;
     totalEvents: number;
     totalAlerts: number;
     criticalAlerts: number;
@@ -433,6 +438,11 @@ export type SecurityDashboardView = {
     machineId: string;
     hostname: string;
     os: string;
+    status?: SecurityMonitoringMachineView["status"];
+    cpu?: number;
+    ramUsed?: number;
+    ramTotal?: number;
+    disk?: number;
     lastSeenAt: string;
   }>;
   topSourceIps: Array<{
