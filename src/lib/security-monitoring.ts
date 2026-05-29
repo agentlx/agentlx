@@ -37,6 +37,13 @@ export const securityEventSchema = z.object({
   message: z.string().trim().min(1).max(2_000),
   attributes: z.record(z.unknown()).default({}),
   raw: z.string().max(8_000).default(""),
+  eventFingerprint: z
+    .string()
+    .trim()
+    .min(16)
+    .max(128)
+    .regex(/^[a-zA-Z0-9._:-]+$/)
+    .optional(),
 });
 
 export const agentSecurityEventsIngestSchema = z.object({

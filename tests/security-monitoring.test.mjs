@@ -41,3 +41,10 @@ test("events view offers csv and json exports", () => {
   assert.match(events, /exportCurrent\("csv"\)/);
   assert.match(events, /exportCurrent\("json"\)/);
 });
+
+test("agent security event contract accepts enterprise fingerprints", () => {
+  const contract = read("src/lib/security-monitoring.ts");
+
+  assert.match(contract, /eventFingerprint/);
+  assert.match(contract, /\.max\(128\)/);
+});
