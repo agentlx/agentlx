@@ -13,7 +13,7 @@ export const Route = createFileRoute("/monitoring/alerts")({
     await requireRouteScreen("monitoring");
     if (!(await hasSecurityMonitoringFeatureData())) return null;
     return listSecurityAlertsData({
-      data: { limit: 50, offset: 0, severity: "all", status: "all" },
+      data: { limit: 10, offset: 0, severity: "all", status: "all" },
     });
   },
   head: () => ({

@@ -13,7 +13,7 @@ export const Route = createFileRoute("/monitoring/machines/$machineId")({
     await requireRouteScreen("monitoring");
     if (!(await hasSecurityMonitoringFeatureData())) return null;
     return getSecurityMachineEventsOverviewData({
-      data: { machineId: params.machineId, period: "24h", limit: 25, offset: 0 },
+      data: { machineId: params.machineId, period: "24h", limit: 10, offset: 0 },
     });
   },
   head: () => ({

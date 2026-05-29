@@ -17,7 +17,7 @@ export const Route = createFileRoute("/monitoring/rules")({
       });
     }
     if (!(await hasSecurityMonitoringFeatureData())) return null;
-    return listSecurityRulesData({ data: { limit: 100, offset: 0, enabled: "all" } });
+    return listSecurityRulesData({ data: { limit: 10, offset: 0, enabled: "all" } });
   },
   head: () => ({
     meta: [
