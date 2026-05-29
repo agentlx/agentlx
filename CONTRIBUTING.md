@@ -13,10 +13,13 @@ Requirements:
 Common commands:
 
 ```bash
-npm install
+npm ci
 npm run db:init
 npm run dev
 ```
+
+Use `npm install` or `npm uninstall` only when intentionally changing dependencies.
+Commit the resulting `package.json` and `package-lock.json` together.
 
 Quality checks:
 

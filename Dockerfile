@@ -3,7 +3,7 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 
@@ -41,7 +41,7 @@ ENV AGENTLX_IMAGE_DIGEST=${AGENTLX_IMAGE_DIGEST}
 ENV AGENTLX_OFFICIAL_BUILD=${AGENTLX_OFFICIAL_BUILD}
 
 COPY package.json package-lock.json* ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/db ./db

@@ -284,8 +284,12 @@ AGENTLX_PENDING_TOKEN_SECRET=troque-este-segredo
 Instale as dependências:
 
 ```bash
-npm install
+npm ci
 ```
+
+Use `npm install` ou `npm uninstall` somente quando for adicionar, atualizar ou
+remover dependencias. Nesses casos, valide e versione tambem o
+`package-lock.json`.
 
 Inicialize o banco:
 
@@ -310,6 +314,7 @@ http://localhost:3000
 ## Build de produção
 
 ```bash
+npm ci
 npm run build
 npm run start
 ```
@@ -323,6 +328,10 @@ O comando `start` sobe o servidor Node responsável por:
 ---
 
 ## Docker
+
+O Dockerfile usa `npm ci` em todos os stages Node. Isso preserva a arvore de
+dependencias travada em `package-lock.json` e faz o build falhar se
+`package.json` e `package-lock.json` estiverem fora de sincronia.
 
 ### Imagem oficial
 
