@@ -40,19 +40,10 @@ export default defineConfig(({ mode }) => ({
       { find: "@", replacement: resolve(__dirname, "src") },
       { find: /^@agentlx\/enterprise$/, replacement: enterpriseAlias(mode) },
       { find: /^@agentlx\/enterprise-ui$/, replacement: enterpriseUiAlias(mode) },
-      {
-        find: /^@tanstack\/react-router$/,
-        replacement: resolve(__dirname, "node_modules/@tanstack/react-router"),
-      },
-      {
-        find: /^@tanstack\/react-start$/,
-        replacement: resolve(__dirname, "node_modules/@tanstack/react-start"),
-      },
       { find: /^lucide-react$/, replacement: resolve(__dirname, "node_modules/lucide-react") },
-      { find: /^react$/, replacement: resolve(__dirname, "node_modules/react") },
-      { find: /^react-dom$/, replacement: resolve(__dirname, "node_modules/react-dom") },
       { find: /^recharts$/, replacement: resolve(__dirname, "node_modules/recharts") },
     ],
+    dedupe: ["@tanstack/react-router", "@tanstack/react-start", "react", "react-dom"],
   },
   plugins: [
     tanstackStart({
