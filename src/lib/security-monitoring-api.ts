@@ -12,6 +12,13 @@ import {
   updateSecurityRuleSchema,
 } from "@/lib/security-monitoring";
 
+export const hasSecurityMonitoringFeatureData = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { hasSecurityMonitoringFeature } = await import("@/server/edition.server");
+    return hasSecurityMonitoringFeature();
+  },
+);
+
 export const getSecurityDashboardData = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => securityDashboardInputSchema.parse(data ?? {}))
   .handler(async ({ data }) => {

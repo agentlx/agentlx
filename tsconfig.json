@@ -23,6 +23,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@agentlx/enterprise": ["./src/enterprise/community.ts"],
+      "@agentlx/enterprise-ui": ["./src/enterprise/community-ui.tsx"],
       "@agentlx/enterprise/types": ["./src/enterprise/types.ts"]
     }
   }
