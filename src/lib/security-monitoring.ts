@@ -5,6 +5,9 @@ export const securityMonitoringFeatureId = "security_monitoring" as const;
 export const securitySeverityValues = ["low", "medium", "high", "critical"] as const;
 export type SecuritySeverity = (typeof securitySeverityValues)[number];
 
+export const securityRiskLevelValues = ["informational", ...securitySeverityValues] as const;
+export type SecurityRiskLevel = (typeof securityRiskLevelValues)[number];
+
 export const securityAlertStatusValues = [
   "open",
   "acknowledged",
@@ -208,6 +211,15 @@ export type SecurityMonitoringMachineView = {
   arch: string;
   location: string;
   tags: string[];
+  riskScore: number;
+  riskLevel: SecurityRiskLevel;
+  riskSummary: {
+    criticalEvents24h: number;
+    highEvents24h: number;
+    mediumEvents24h: number;
+    correlatedAlerts24h: number;
+    topDetectionReasons: string[];
+  };
 };
 
 export type SecurityEventContextView = {
@@ -467,6 +479,9 @@ export type SecurityDashboardView = {
     totalAlerts: number;
     criticalAlerts: number;
     highAlerts: number;
+    riskScore: number;
+    riskLevel: SecurityRiskLevel;
+    riskSummary?: SecurityMonitoringMachineView["riskSummary"];
     lastSeenAt: string;
   }>;
   machineOptions: Array<{
