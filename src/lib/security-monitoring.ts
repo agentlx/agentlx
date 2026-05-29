@@ -37,6 +37,8 @@ const canonicalInvestigationFilterSchema = z.object({
   service: z.string().trim().min(1).max(180).optional(),
   riskLevel: z.enum(["informational", "low", "medium", "high", "critical"]).optional(),
   minRiskScore: z.coerce.number().int().min(0).max(100).optional(),
+  detectionReason: z.string().trim().min(1).max(160).optional(),
+  minDetectionConfidence: z.coerce.number().min(0).max(1).optional(),
   confidence: z.enum(["low", "medium", "high"]).optional(),
   isRoot: optionalCanonicalBooleanFilterSchema,
   isSudo: optionalCanonicalBooleanFilterSchema,
