@@ -147,6 +147,7 @@ export type SecurityEventView = {
   timestamp: string;
   message: string;
   attributes: Record<string, unknown>;
+  metadata: Record<string, unknown>;
   raw: string;
   createdAt: string;
 };
@@ -305,6 +306,7 @@ export type SecurityEventDetailView = {
   event: SecurityMachineEventRowView & {
     raw: string;
     attributes: Record<string, unknown>;
+    metadata: Record<string, unknown>;
     payload: Record<string, unknown>;
   };
   machine: SecurityMonitoringMachineView;

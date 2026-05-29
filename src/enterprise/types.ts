@@ -187,7 +187,13 @@ export type EnterpriseSecurityMonitoring = {
       payload: AgentSecurityEventsIngestInput;
     },
     context: EnterpriseRuntimeContext,
-  ): Promise<{ ok: true; accepted: number; duplicateCount: number; alertCount: number }>;
+  ): Promise<{
+    ok: true;
+    accepted: number;
+    duplicateCount: number;
+    droppedCount: number;
+    alertCount: number;
+  }>;
   getDashboard(
     input: SecurityDashboardInput & { principal: SecurityPrincipal },
     context: EnterpriseRuntimeContext,
