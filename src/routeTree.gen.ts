@@ -43,6 +43,7 @@ import { Route as ApiAgentInstallDotshRouteImport } from './routes/api/agent/ins
 import { Route as ApiAgentHeartbeatRouteImport } from './routes/api/agent/heartbeat'
 import { Route as ApiAgentDecommissionRouteImport } from './routes/api/agent/decommission'
 import { Route as ApiSecurityRulesRuleIdRouteImport } from './routes/api/security/rules.$ruleId'
+import { Route as ApiSecurityInvestigationSearchRouteImport } from './routes/api/security/investigation/search'
 import { Route as ApiSecurityEventsOverviewRouteImport } from './routes/api/security/events.overview'
 import { Route as ApiSecurityEventsExportRouteImport } from './routes/api/security/events.export'
 import { Route as ApiSecurityEventsEventIdRouteImport } from './routes/api/security/events.$eventId'
@@ -54,6 +55,7 @@ import { Route as ApiAgentFilesRequirementsRouteImport } from './routes/api/agen
 import { Route as ApiAgentFilesConfigExampleJsonRouteImport } from './routes/api/agent/files/config-example-json'
 import { Route as ApiAgentFilesAgentDotpyRouteImport } from './routes/api/agent/files/agent[.]py'
 import { Route as ApiAgentExecutionsResultRouteImport } from './routes/api/agent/executions/result'
+import { Route as ApiSecurityEventsEventIdInvestigationContextRouteImport } from './routes/api/security/events.$eventId.investigation-context'
 import { Route as ApiSecurityAlertsAlertIdStatusRouteImport } from './routes/api/security/alerts.$alertId.status'
 import { Route as ApiSecurityAlertsAlertIdCommentsRouteImport } from './routes/api/security/alerts.$alertId.comments'
 
@@ -228,6 +230,12 @@ const ApiSecurityRulesRuleIdRoute = ApiSecurityRulesRuleIdRouteImport.update({
   path: '/$ruleId',
   getParentRoute: () => ApiSecurityRulesRoute,
 } as any)
+const ApiSecurityInvestigationSearchRoute =
+  ApiSecurityInvestigationSearchRouteImport.update({
+    id: '/api/security/investigation/search',
+    path: '/api/security/investigation/search',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiSecurityEventsOverviewRoute =
   ApiSecurityEventsOverviewRouteImport.update({
     id: '/overview',
@@ -290,6 +298,12 @@ const ApiAgentExecutionsResultRoute =
     path: '/api/agent/executions/result',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiSecurityEventsEventIdInvestigationContextRoute =
+  ApiSecurityEventsEventIdInvestigationContextRouteImport.update({
+    id: '/investigation-context',
+    path: '/investigation-context',
+    getParentRoute: () => ApiSecurityEventsEventIdRoute,
+  } as any)
 const ApiSecurityAlertsAlertIdStatusRoute =
   ApiSecurityAlertsAlertIdStatusRouteImport.update({
     id: '/status',
@@ -345,12 +359,14 @@ export interface FileRoutesByFullPath {
   '/api/agent/files/runtime-manifest': typeof ApiAgentFilesRuntimeManifestRoute
   '/api/agent/security/events': typeof ApiAgentSecurityEventsRoute
   '/api/security/alerts/$alertId': typeof ApiSecurityAlertsAlertIdRouteWithChildren
-  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRoute
+  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRouteWithChildren
   '/api/security/events/export': typeof ApiSecurityEventsExportRoute
   '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
+  '/api/security/investigation/search': typeof ApiSecurityInvestigationSearchRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
+  '/api/security/events/$eventId/investigation-context': typeof ApiSecurityEventsEventIdInvestigationContextRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -394,12 +410,14 @@ export interface FileRoutesByTo {
   '/api/agent/files/runtime-manifest': typeof ApiAgentFilesRuntimeManifestRoute
   '/api/agent/security/events': typeof ApiAgentSecurityEventsRoute
   '/api/security/alerts/$alertId': typeof ApiSecurityAlertsAlertIdRouteWithChildren
-  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRoute
+  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRouteWithChildren
   '/api/security/events/export': typeof ApiSecurityEventsExportRoute
   '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
+  '/api/security/investigation/search': typeof ApiSecurityInvestigationSearchRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
+  '/api/security/events/$eventId/investigation-context': typeof ApiSecurityEventsEventIdInvestigationContextRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -444,12 +462,14 @@ export interface FileRoutesById {
   '/api/agent/files/runtime-manifest': typeof ApiAgentFilesRuntimeManifestRoute
   '/api/agent/security/events': typeof ApiAgentSecurityEventsRoute
   '/api/security/alerts/$alertId': typeof ApiSecurityAlertsAlertIdRouteWithChildren
-  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRoute
+  '/api/security/events/$eventId': typeof ApiSecurityEventsEventIdRouteWithChildren
   '/api/security/events/export': typeof ApiSecurityEventsExportRoute
   '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
+  '/api/security/investigation/search': typeof ApiSecurityInvestigationSearchRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
+  '/api/security/events/$eventId/investigation-context': typeof ApiSecurityEventsEventIdInvestigationContextRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -498,9 +518,11 @@ export interface FileRouteTypes {
     | '/api/security/events/$eventId'
     | '/api/security/events/export'
     | '/api/security/events/overview'
+    | '/api/security/investigation/search'
     | '/api/security/rules/$ruleId'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
+    | '/api/security/events/$eventId/investigation-context'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -547,9 +569,11 @@ export interface FileRouteTypes {
     | '/api/security/events/$eventId'
     | '/api/security/events/export'
     | '/api/security/events/overview'
+    | '/api/security/investigation/search'
     | '/api/security/rules/$ruleId'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
+    | '/api/security/events/$eventId/investigation-context'
   id:
     | '__root__'
     | '/'
@@ -596,9 +620,11 @@ export interface FileRouteTypes {
     | '/api/security/events/$eventId'
     | '/api/security/events/export'
     | '/api/security/events/overview'
+    | '/api/security/investigation/search'
     | '/api/security/rules/$ruleId'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
+    | '/api/security/events/$eventId/investigation-context'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -636,6 +662,7 @@ export interface RootRouteChildren {
   ApiAgentFilesRuntimeRoute: typeof ApiAgentFilesRuntimeRoute
   ApiAgentFilesRuntimeManifestRoute: typeof ApiAgentFilesRuntimeManifestRoute
   ApiAgentSecurityEventsRoute: typeof ApiAgentSecurityEventsRoute
+  ApiSecurityInvestigationSearchRoute: typeof ApiSecurityInvestigationSearchRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -878,6 +905,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSecurityRulesRuleIdRouteImport
       parentRoute: typeof ApiSecurityRulesRoute
     }
+    '/api/security/investigation/search': {
+      id: '/api/security/investigation/search'
+      path: '/api/security/investigation/search'
+      fullPath: '/api/security/investigation/search'
+      preLoaderRoute: typeof ApiSecurityInvestigationSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/security/events/overview': {
       id: '/api/security/events/overview'
       path: '/overview'
@@ -955,6 +989,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentExecutionsResultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/security/events/$eventId/investigation-context': {
+      id: '/api/security/events/$eventId/investigation-context'
+      path: '/investigation-context'
+      fullPath: '/api/security/events/$eventId/investigation-context'
+      preLoaderRoute: typeof ApiSecurityEventsEventIdInvestigationContextRouteImport
+      parentRoute: typeof ApiSecurityEventsEventIdRoute
+    }
     '/api/security/alerts/$alertId/status': {
       id: '/api/security/alerts/$alertId/status'
       path: '/status'
@@ -1031,14 +1072,29 @@ const ApiSecurityAlertsRouteChildren: ApiSecurityAlertsRouteChildren = {
 const ApiSecurityAlertsRouteWithChildren =
   ApiSecurityAlertsRoute._addFileChildren(ApiSecurityAlertsRouteChildren)
 
+interface ApiSecurityEventsEventIdRouteChildren {
+  ApiSecurityEventsEventIdInvestigationContextRoute: typeof ApiSecurityEventsEventIdInvestigationContextRoute
+}
+
+const ApiSecurityEventsEventIdRouteChildren: ApiSecurityEventsEventIdRouteChildren =
+  {
+    ApiSecurityEventsEventIdInvestigationContextRoute:
+      ApiSecurityEventsEventIdInvestigationContextRoute,
+  }
+
+const ApiSecurityEventsEventIdRouteWithChildren =
+  ApiSecurityEventsEventIdRoute._addFileChildren(
+    ApiSecurityEventsEventIdRouteChildren,
+  )
+
 interface ApiSecurityEventsRouteChildren {
-  ApiSecurityEventsEventIdRoute: typeof ApiSecurityEventsEventIdRoute
+  ApiSecurityEventsEventIdRoute: typeof ApiSecurityEventsEventIdRouteWithChildren
   ApiSecurityEventsExportRoute: typeof ApiSecurityEventsExportRoute
   ApiSecurityEventsOverviewRoute: typeof ApiSecurityEventsOverviewRoute
 }
 
 const ApiSecurityEventsRouteChildren: ApiSecurityEventsRouteChildren = {
-  ApiSecurityEventsEventIdRoute: ApiSecurityEventsEventIdRoute,
+  ApiSecurityEventsEventIdRoute: ApiSecurityEventsEventIdRouteWithChildren,
   ApiSecurityEventsExportRoute: ApiSecurityEventsExportRoute,
   ApiSecurityEventsOverviewRoute: ApiSecurityEventsOverviewRoute,
 }
@@ -1092,6 +1148,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentFilesRuntimeRoute: ApiAgentFilesRuntimeRoute,
   ApiAgentFilesRuntimeManifestRoute: ApiAgentFilesRuntimeManifestRoute,
   ApiAgentSecurityEventsRoute: ApiAgentSecurityEventsRoute,
+  ApiSecurityInvestigationSearchRoute: ApiSecurityInvestigationSearchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

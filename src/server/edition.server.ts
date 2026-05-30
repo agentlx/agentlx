@@ -24,6 +24,8 @@ import type {
   SecurityDashboardInput,
   SecurityEventExportInput,
   SecurityEventListInput,
+  SecurityInvestigationContextInput,
+  SecurityInvestigationSearchInput,
   SecurityMachineEventsInput,
   SecurityPrincipal,
   SecurityRuleListInput,
@@ -393,6 +395,33 @@ export async function getEnterpriseSecurityEventDetail(input: {
   }
 
   return provider.securityMonitoring.getEventDetail(input, enterpriseRuntimeContext());
+}
+
+export async function getEnterpriseSecurityEventInvestigationContext(
+  input: SecurityInvestigationContextInput & { principal: SecurityPrincipal },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.getEventInvestigationContext(
+    input,
+    enterpriseRuntimeContext(),
+  );
+}
+
+export async function searchEnterpriseSecurityInvestigationEvents(
+  input: SecurityInvestigationSearchInput & { principal: SecurityPrincipal },
+) {
+  const provider = await loadProvider();
+  await requireEnterpriseFeature("security_monitoring");
+  if (!provider.securityMonitoring) {
+    throw new Error("Security Monitoring is not available in this edition or license.");
+  }
+
+  return provider.securityMonitoring.searchInvestigationEvents(input, enterpriseRuntimeContext());
 }
 
 export async function exportEnterpriseSecurityEvents(

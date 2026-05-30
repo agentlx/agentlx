@@ -20,6 +20,10 @@ import type {
   SecurityEventDetailView,
   SecurityEventExportInput,
   SecurityEventExportView,
+  SecurityInvestigationContextInput,
+  SecurityInvestigationContextView,
+  SecurityInvestigationSearchInput,
+  SecurityInvestigationSearchView,
   SecurityEventListInput,
   SecurityEventView,
   SecurityListResponse,
@@ -234,6 +238,14 @@ export type EnterpriseSecurityMonitoring = {
     input: { eventId: string; principal: SecurityPrincipal },
     context: EnterpriseRuntimeContext,
   ): Promise<SecurityEventDetailView>;
+  getEventInvestigationContext(
+    input: SecurityInvestigationContextInput & { principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityInvestigationContextView>;
+  searchInvestigationEvents(
+    input: SecurityInvestigationSearchInput & { principal: SecurityPrincipal },
+    context: EnterpriseRuntimeContext,
+  ): Promise<SecurityInvestigationSearchView>;
   exportEvents(
     input: SecurityEventExportInput & { principal: SecurityPrincipal },
     context: EnterpriseRuntimeContext,

@@ -28,33 +28,100 @@ export type SecurityEventComputedStatus = (typeof securityEventComputedStatusVal
 
 const optionalLevelSchema = z.coerce.number().int().min(0).max(15).optional();
 const optionalCanonicalBooleanFilterSchema = z.enum(["true", "false"]).optional();
+const optionalSearchTextSchema = z.string().trim().min(1).max(500).optional();
+const optionalPortSchema = z.coerce.number().int().min(1).max(65535).optional();
+const optionalRiskScoreSchema = z.coerce.number().int().min(0).max(100).optional();
+const optionalConfidenceScoreSchema = z.coerce.number().min(0).max(1).optional();
 
 const canonicalInvestigationFilterSchema = z.object({
+  cursor: z.string().trim().min(1).max(500).optional(),
+  hostname: optionalSearchTextSchema,
   eventFamily: z.string().trim().min(1).max(80).optional(),
+  event_family: z.string().trim().min(1).max(80).optional(),
   actorUser: z.string().trim().min(1).max(120).optional(),
+  actor_user: z.string().trim().min(1).max(120).optional(),
+  username: z.string().trim().min(1).max(120).optional(),
   process: z.string().trim().min(1).max(160).optional(),
+  pid: z.string().trim().min(1).max(40).optional(),
+  ppid: z.string().trim().min(1).max(40).optional(),
+  parentProcess: z.string().trim().min(1).max(160).optional(),
+  parent_process: z.string().trim().min(1).max(160).optional(),
+  command: optionalSearchTextSchema,
+  path: optionalSearchTextSchema,
   srcIp: z.string().trim().min(1).max(120).optional(),
+  src_ip: z.string().trim().min(1).max(120).optional(),
   dstIp: z.string().trim().min(1).max(120).optional(),
-  port: z.coerce.number().int().min(1).max(65535).optional(),
-  file: z.string().trim().min(1).max(500).optional(),
+  dst_ip: z.string().trim().min(1).max(120).optional(),
+  localIp: z.string().trim().min(1).max(120).optional(),
+  local_ip: z.string().trim().min(1).max(120).optional(),
+  remoteIp: z.string().trim().min(1).max(120).optional(),
+  remote_ip: z.string().trim().min(1).max(120).optional(),
+  port: optionalPortSchema,
+  localPort: optionalPortSchema,
+  local_port: optionalPortSchema,
+  remotePort: optionalPortSchema,
+  remote_port: optionalPortSchema,
+  file: optionalSearchTextSchema,
+  filePath: optionalSearchTextSchema,
+  file_path: optionalSearchTextSchema,
   service: z.string().trim().min(1).max(180).optional(),
+  authResult: z.string().trim().min(1).max(80).optional(),
+  auth_result: z.string().trim().min(1).max(80).optional(),
+  authMethod: z.string().trim().min(1).max(80).optional(),
+  auth_method: z.string().trim().min(1).max(80).optional(),
   riskLevel: z.enum(["informational", "low", "medium", "high", "critical"]).optional(),
-  minRiskScore: z.coerce.number().int().min(0).max(100).optional(),
+  risk_level: z.enum(["informational", "low", "medium", "high", "critical"]).optional(),
+  minRiskScore: optionalRiskScoreSchema,
+  riskMin: optionalRiskScoreSchema,
+  risk_min: optionalRiskScoreSchema,
+  riskMax: optionalRiskScoreSchema,
+  risk_max: optionalRiskScoreSchema,
   detectionReason: z.string().trim().min(1).max(160).optional(),
-  minDetectionConfidence: z.coerce.number().min(0).max(1).optional(),
+  detection_reason: z.string().trim().min(1).max(160).optional(),
+  minDetectionConfidence: optionalConfidenceScoreSchema,
+  confidenceMin: optionalConfidenceScoreSchema,
+  confidence_min: optionalConfidenceScoreSchema,
   confidence: z.enum(["low", "medium", "high"]).optional(),
+  ruleId: z.string().trim().min(1).max(120).optional(),
+  rule_id: z.string().trim().min(1).max(120).optional(),
+  correlationType: z.string().trim().min(1).max(160).optional(),
+  correlation_type: z.string().trim().min(1).max(160).optional(),
+  baselineType: z.string().trim().min(1).max(160).optional(),
+  baseline_type: z.string().trim().min(1).max(160).optional(),
+  hasCorrelation: optionalCanonicalBooleanFilterSchema,
+  has_correlation: optionalCanonicalBooleanFilterSchema,
+  hasAlert: optionalCanonicalBooleanFilterSchema,
+  has_alert: optionalCanonicalBooleanFilterSchema,
+  isNewListener: optionalCanonicalBooleanFilterSchema,
+  is_new_listener: optionalCanonicalBooleanFilterSchema,
   isRoot: optionalCanonicalBooleanFilterSchema,
+  is_root: optionalCanonicalBooleanFilterSchema,
   isSudo: optionalCanonicalBooleanFilterSchema,
+  is_sudo: optionalCanonicalBooleanFilterSchema,
   isSystemUser: optionalCanonicalBooleanFilterSchema,
+  is_system_user: optionalCanonicalBooleanFilterSchema,
   isExternalIp: optionalCanonicalBooleanFilterSchema,
+  is_external_ip: optionalCanonicalBooleanFilterSchema,
   isPrivateIp: optionalCanonicalBooleanFilterSchema,
+  is_private_ip: optionalCanonicalBooleanFilterSchema,
   isSensitiveFile: optionalCanonicalBooleanFilterSchema,
+  is_sensitive_file: optionalCanonicalBooleanFilterSchema,
   isPersistenceSignal: optionalCanonicalBooleanFilterSchema,
+  is_persistence_signal: optionalCanonicalBooleanFilterSchema,
   isPrivilegeEscalationSignal: optionalCanonicalBooleanFilterSchema,
+  is_privilege_escalation_signal: optionalCanonicalBooleanFilterSchema,
   isTmpExecution: optionalCanonicalBooleanFilterSchema,
+  is_tmp_execution: optionalCanonicalBooleanFilterSchema,
   isSuspiciousProcess: optionalCanonicalBooleanFilterSchema,
+  is_suspicious_process: optionalCanonicalBooleanFilterSchema,
   isSuspiciousCommand: optionalCanonicalBooleanFilterSchema,
+  is_suspicious_command: optionalCanonicalBooleanFilterSchema,
   isLateralMovementSignal: optionalCanonicalBooleanFilterSchema,
+  is_lateral_movement_signal: optionalCanonicalBooleanFilterSchema,
+  createdFrom: z.string().datetime().optional(),
+  created_from: z.string().datetime().optional(),
+  createdTo: z.string().datetime().optional(),
+  created_to: z.string().datetime().optional(),
 });
 
 export const securityEventSchema = z.object({
@@ -127,6 +194,37 @@ export const securityEventDetailInputSchema = z.object({
   eventId: z.string().trim().min(1).max(160),
 });
 
+export const securityInvestigationContextInputSchema = securityEventDetailInputSchema.extend({
+  before: z.string().trim().max(20).optional(),
+  after: z.string().trim().max(20).optional(),
+});
+
+export const securityInvestigationSearchInputSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().trim().min(1).max(500).optional().nullable(),
+  machine_id: z.string().trim().min(1).max(120).optional(),
+  machineId: z.string().trim().min(1).max(120).optional(),
+  time_range: z
+    .object({
+      from: z.string().datetime().optional(),
+      to: z.string().datetime().optional(),
+    })
+    .optional(),
+  filters: canonicalInvestigationFilterSchema
+    .partial()
+    .extend({
+      machineId: z.string().trim().min(1).max(120).optional(),
+      machine_id: z.string().trim().min(1).max(120).optional(),
+    })
+    .default({}),
+  sort: z
+    .object({
+      field: z.enum(["created_at", "timestamp", "risk_score"]).default("created_at"),
+      direction: z.enum(["asc", "desc"]).default("desc"),
+    })
+    .default({ field: "created_at", direction: "desc" }),
+});
+
 export const updateSecurityAlertStatusSchema = z.object({
   status: z.enum(securityAlertStatusValues),
 });
@@ -162,6 +260,12 @@ export type SecurityEventListInput = z.infer<typeof securityEventListInputSchema
 export type SecurityMachineEventsInput = z.infer<typeof securityMachineEventsInputSchema>;
 export type SecurityEventExportInput = z.infer<typeof securityEventExportInputSchema>;
 export type SecurityEventDetailInput = z.infer<typeof securityEventDetailInputSchema>;
+export type SecurityInvestigationContextInput = z.infer<
+  typeof securityInvestigationContextInputSchema
+>;
+export type SecurityInvestigationSearchInput = z.infer<
+  typeof securityInvestigationSearchInputSchema
+>;
 export type SecurityRuleListInput = z.infer<typeof securityRuleListInputSchema>;
 export type SecurityDashboardInput = z.infer<typeof securityDashboardInputSchema>;
 export type UpdateSecurityAlertStatusInput = z.infer<typeof updateSecurityAlertStatusSchema>;
@@ -321,6 +425,10 @@ export type SecurityMachineEventsOverviewView = {
     total: number;
     totalPages: number;
     hasMore: boolean;
+    nextCursor?: {
+      createdAt: string;
+      id: string;
+    } | null;
   };
 };
 
@@ -442,6 +550,46 @@ export type SecurityListResponse<T> = {
     limit: number;
     offset: number;
     hasMore: boolean;
+    nextCursor?: {
+      createdAt: string;
+      id: string;
+    } | null;
+  };
+};
+
+export type SecurityInvestigationContextView = {
+  event: SecurityEventDetailView["event"];
+  asset: {
+    machineId: string;
+    hostname: string;
+    assetCriticality: string | null;
+    agentHealthLevel: string | null;
+  };
+  timeline: {
+    before: SecurityEventView[];
+    after: SecurityEventView[];
+  };
+  related: Record<string, SecurityEventView[]>;
+  correlations: Array<Record<string, unknown>>;
+  baselineDiffs: Array<Record<string, unknown>>;
+  recommendedActions: string[];
+  mitre: {
+    tactic: string | null;
+    technique: string | null;
+    techniqueId: string | null;
+  };
+};
+
+export type SecurityInvestigationSearchView = SecurityListResponse<SecurityEventView> & {
+  facets: {
+    eventFamily: Record<string, number>;
+    riskLevel: Record<string, number>;
+    topDetectionReasons: Array<{ value: string; count: number }>;
+    topUsers: Array<{ value: string; count: number }>;
+    topProcesses: Array<{ value: string; count: number }>;
+    topIps: Array<{ value: string; count: number }>;
+    topMachines: Array<{ value: string; count: number }>;
+    topPorts: Array<{ value: string; count: number }>;
   };
 };
 
