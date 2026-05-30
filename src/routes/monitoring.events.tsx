@@ -5,6 +5,7 @@ import { APP_NAME } from "@/lib/brand";
 import {
   getSecurityDashboardData,
   hasSecurityMonitoringFeatureData,
+  searchSecurityInvestigationEventsData,
 } from "@/lib/security-monitoring-api";
 import { requireRouteScreen } from "@/lib/route-protection";
 
@@ -12,7 +13,17 @@ export const Route = createFileRoute("/monitoring/events")({
   loader: async () => {
     await requireRouteScreen("monitoring");
     if (!(await hasSecurityMonitoringFeatureData())) return null;
-    return getSecurityDashboardData({ data: { period: "24h" } });
+    const [dashboard, initial] = await Promise.all([
+      getSecurityDashboardData({ data: { period: "24h" } }),
+      searchSecurityInvestigationEventsData({
+        data: {
+          limit: 10,
+          filters: {},
+          sort: { field: "created_at", direction: "desc" },
+        },
+      }),
+    ]);
+    return { dashboard, initial };
   },
   head: () => ({
     meta: [
@@ -28,5 +39,5 @@ function MonitoringEventsRoute() {
   if (!dashboard) {
     return <SecurityMonitoringEnterprisePlaceholder title="Eventos" />;
   }
-  return <MonitoringEventsPage dashboard={dashboard} />;
+  return <MonitoringEventsPage dashboard={dashboard.dashboard} initial={dashboard.initial} />;
 }

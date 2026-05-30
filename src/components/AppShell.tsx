@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  ChevronDown,
   FileText,
   KeyRound,
   LayoutDashboard,
@@ -52,6 +53,17 @@ const nav = [
   { to: "/logs", label: "Logs", icon: ScrollText, exact: false, screen: "logs" },
   { to: "/license", label: "Licenca", icon: KeyRound, exact: false, screen: "license" },
   { to: "/users", label: "Usuarios", icon: UserCircle2, exact: false, screen: "users" },
+] as const;
+
+const monitoringNav = [
+  { to: "/monitoring", label: "Visao Geral", exact: true },
+  { to: "/monitoring/machines", label: "Maquinas", exact: false },
+  { to: "/monitoring/events", label: "Eventos", exact: false },
+  { to: "/monitoring/alerts", label: "Alertas", exact: false },
+  { to: "/monitoring/investigation", label: "Investigacao", exact: false },
+  { to: "/monitoring/baseline", label: "Baseline", exact: false },
+  { to: "/monitoring/collection-health", label: "Saude da Coleta", exact: false },
+  { to: "/monitoring/rules", label: "Regras", exact: false },
 ] as const;
 
 export function AppShell({
@@ -139,20 +151,52 @@ export function AppShell({
       {visibleNav.map((item) => {
         const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
         const Icon = item.icon;
+        const isMonitoring = item.to === "/monitoring";
         return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={() => setMobileNavOpen(false)}
-            className={`flex items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors ${
-              active
-                ? "border-primary/20 bg-primary/10 text-primary"
-                : "border-transparent text-muted-foreground hover:bg-white/5 hover:text-foreground"
-            }`}
-          >
-            <Icon className="size-4" />
-            <span>{item.label}</span>
-          </Link>
+          <div key={item.to}>
+            <Link
+              to={item.to}
+              onClick={() => {
+                if (!isMonitoring) setMobileNavOpen(false);
+              }}
+              className={`flex items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors ${
+                active
+                  ? "border-primary/20 bg-primary/10 text-primary"
+                  : "border-transparent text-muted-foreground hover:bg-white/5 hover:text-foreground"
+              }`}
+            >
+              <Icon className="size-4" />
+              <span className="flex-1">{item.label}</span>
+              {isMonitoring && (
+                <ChevronDown
+                  className={`size-3.5 transition-transform ${active ? "rotate-180" : ""}`}
+                />
+              )}
+            </Link>
+            {isMonitoring && active && (
+              <div className="ml-5 mt-1 space-y-0.5 border-l border-border pl-2">
+                {monitoringNav.map((child) => {
+                  const childActive = child.exact
+                    ? pathname === child.to
+                    : pathname.startsWith(child.to);
+                  return (
+                    <Link
+                      key={child.to}
+                      to={child.to}
+                      onClick={() => setMobileNavOpen(false)}
+                      className={`block rounded-md px-3 py-1.5 text-xs transition-colors ${
+                        childActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                      }`}
+                    >
+                      {child.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         );
       })}
     </nav>

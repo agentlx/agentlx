@@ -6,6 +6,8 @@ import {
   securityEventDetailInputSchema,
   securityEventExportInputSchema,
   securityAlertListInputSchema,
+  securityInvestigationContextInputSchema,
+  securityInvestigationSearchInputSchema,
   securityMachineEventsInputSchema,
   securityRuleListInputSchema,
   updateSecurityAlertStatusSchema,
@@ -61,6 +63,58 @@ export const getSecurityEventDetailData = createServerFn({ method: "GET" })
     });
 
     return JSON.parse(JSON.stringify(detail));
+  });
+
+export const getSecurityAlertDetailData = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        alertId: z.string().trim().min(1).max(160),
+      })
+      .parse(typeof data === "object" && data !== null ? data : {}),
+  )
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("monitoring");
+    const { getEnterpriseSecurityAlert } = await import("@/server/edition.server");
+    const { toSecurityPrincipal } = await import("@/server/security-monitoring.server");
+
+    const detail = await getEnterpriseSecurityAlert({
+      ...data,
+      principal: toSecurityPrincipal(viewer),
+    });
+    return JSON.parse(JSON.stringify(detail));
+  });
+
+export const getSecurityInvestigationContextData = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => securityInvestigationContextInputSchema.parse(data ?? {}))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("monitoring");
+    const { getEnterpriseSecurityEventInvestigationContext } =
+      await import("@/server/edition.server");
+    const { toSecurityPrincipal } = await import("@/server/security-monitoring.server");
+
+    const context = await getEnterpriseSecurityEventInvestigationContext({
+      ...data,
+      principal: toSecurityPrincipal(viewer),
+    });
+    return JSON.parse(JSON.stringify(context));
+  });
+
+export const searchSecurityInvestigationEventsData = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => securityInvestigationSearchInputSchema.parse(data ?? {}))
+  .handler(async ({ data }) => {
+    const { requireScreenAccess } = await import("@/server/auth.server");
+    const viewer = await requireScreenAccess("monitoring");
+    const { searchEnterpriseSecurityInvestigationEvents } = await import("@/server/edition.server");
+    const { toSecurityPrincipal } = await import("@/server/security-monitoring.server");
+
+    const results = await searchEnterpriseSecurityInvestigationEvents({
+      ...data,
+      principal: toSecurityPrincipal(viewer),
+    });
+    return JSON.parse(JSON.stringify(results));
   });
 
 export const exportSecurityEventsData = createServerFn({ method: "GET" })

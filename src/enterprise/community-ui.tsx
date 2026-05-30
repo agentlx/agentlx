@@ -68,3 +68,43 @@ export function SecurityEventDetailPage(_: Record<string, unknown>) {
 export function MonitoringRulesPage(_: Record<string, unknown>) {
   return <SecurityMonitoringEnterprisePlaceholder title="Regras" />;
 }
+
+export function MonitoringInvestigationPage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Investigacao" />;
+}
+
+export function MonitoringBaselinePage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Baseline" />;
+}
+
+export function MonitoringBaselineDetailPage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Detalhe do baseline" />;
+}
+
+export function MonitoringCollectionHealthPage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Saude da Coleta" />;
+}
+
+export function MonitoringCollectorDetailPage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Detalhe do collector" />;
+}
+
+export function MonitoringAgentConfigPage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Configuracao do Agente" />;
+}
+
+export function MonitoringAlertDetailPage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Detalhe do alerta" />;
+}
+
+export function MonitoringRuleEditorPage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Editor de Regra" />;
+}
+
+export function MonitoringCorrelationsPage(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Correlacoes" />;
+}
+
+export function MonitoringRulesWorkbench(_: Record<string, unknown>) {
+  return <SecurityMonitoringEnterprisePlaceholder title="Regras" />;
+}

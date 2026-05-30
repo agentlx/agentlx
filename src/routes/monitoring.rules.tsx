@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MonitoringRulesPage } from "@agentlx/enterprise-ui";
+import { MonitoringRulesWorkbench } from "@agentlx/enterprise-ui";
 import { SecurityMonitoringEnterprisePlaceholder } from "@/enterprise/community-ui";
 import { APP_NAME } from "@/lib/brand";
 import {
@@ -33,5 +33,5 @@ function MonitoringRulesRoute() {
   if (!initial) {
     return <SecurityMonitoringEnterprisePlaceholder title="Regras" />;
   }
-  return <MonitoringRulesPage initial={initial} />;
+  return <MonitoringRulesWorkbench initial={initial} />;
 }

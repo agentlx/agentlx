@@ -22,14 +22,22 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MachinesIndexRouteImport } from './routes/machines.index'
 import { Route as MonitoringRulesRouteImport } from './routes/monitoring.rules'
 import { Route as MonitoringMachinesRouteImport } from './routes/monitoring.machines'
+import { Route as MonitoringInvestigationRouteImport } from './routes/monitoring.investigation'
 import { Route as MonitoringEventsRouteImport } from './routes/monitoring.events'
+import { Route as MonitoringCollectionHealthRouteImport } from './routes/monitoring.collection-health'
+import { Route as MonitoringBaselineRouteImport } from './routes/monitoring.baseline'
 import { Route as MonitoringAlertsRouteImport } from './routes/monitoring.alerts'
 import { Route as MachinesMachineIdRouteImport } from './routes/machines.$machineId'
 import { Route as ApiProfilePhotoRouteImport } from './routes/api/profile-photo'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiDeploymentStatusRouteImport } from './routes/api/deployment-status'
+import { Route as MonitoringRulesEditorRouteImport } from './routes/monitoring.rules.editor'
+import { Route as MonitoringRulesCorrelationsRouteImport } from './routes/monitoring.rules.correlations'
 import { Route as MonitoringMachinesMachineIdRouteImport } from './routes/monitoring.machines.$machineId'
 import { Route as MonitoringEventsEventIdRouteImport } from './routes/monitoring.events_.$eventId'
+import { Route as MonitoringCollectionHealthAgentConfigRouteImport } from './routes/monitoring.collection-health.agent-config'
+import { Route as MonitoringBaselineDiffIdRouteImport } from './routes/monitoring.baseline.$diffId'
+import { Route as MonitoringAlertsAlertIdRouteImport } from './routes/monitoring.alerts.$alertId'
 import { Route as ApiTerminalPresenceRouteImport } from './routes/api/terminal/presence'
 import { Route as ApiTerminalCloseRouteImport } from './routes/api/terminal/close'
 import { Route as ApiSecurityRulesRouteImport } from './routes/api/security/rules'
@@ -42,6 +50,7 @@ import { Route as ApiAgentPollRouteImport } from './routes/api/agent/poll'
 import { Route as ApiAgentInstallDotshRouteImport } from './routes/api/agent/install[.]sh'
 import { Route as ApiAgentHeartbeatRouteImport } from './routes/api/agent/heartbeat'
 import { Route as ApiAgentDecommissionRouteImport } from './routes/api/agent/decommission'
+import { Route as MonitoringCollectionHealthCollectorCollectorNameRouteImport } from './routes/monitoring.collection-health.collector.$collectorName'
 import { Route as ApiSecurityRulesRuleIdRouteImport } from './routes/api/security/rules.$ruleId'
 import { Route as ApiSecurityInvestigationSearchRouteImport } from './routes/api/security/investigation/search'
 import { Route as ApiSecurityEventsOverviewRouteImport } from './routes/api/security/events.overview'
@@ -124,9 +133,25 @@ const MonitoringMachinesRoute = MonitoringMachinesRouteImport.update({
   path: '/machines',
   getParentRoute: () => MonitoringRoute,
 } as any)
+const MonitoringInvestigationRoute = MonitoringInvestigationRouteImport.update({
+  id: '/investigation',
+  path: '/investigation',
+  getParentRoute: () => MonitoringRoute,
+} as any)
 const MonitoringEventsRoute = MonitoringEventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => MonitoringRoute,
+} as any)
+const MonitoringCollectionHealthRoute =
+  MonitoringCollectionHealthRouteImport.update({
+    id: '/collection-health',
+    path: '/collection-health',
+    getParentRoute: () => MonitoringRoute,
+  } as any)
+const MonitoringBaselineRoute = MonitoringBaselineRouteImport.update({
+  id: '/baseline',
+  path: '/baseline',
   getParentRoute: () => MonitoringRoute,
 } as any)
 const MonitoringAlertsRoute = MonitoringAlertsRouteImport.update({
@@ -154,6 +179,17 @@ const ApiDeploymentStatusRoute = ApiDeploymentStatusRouteImport.update({
   path: '/api/deployment-status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitoringRulesEditorRoute = MonitoringRulesEditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => MonitoringRulesRoute,
+} as any)
+const MonitoringRulesCorrelationsRoute =
+  MonitoringRulesCorrelationsRouteImport.update({
+    id: '/correlations',
+    path: '/correlations',
+    getParentRoute: () => MonitoringRulesRoute,
+  } as any)
 const MonitoringMachinesMachineIdRoute =
   MonitoringMachinesMachineIdRouteImport.update({
     id: '/$machineId',
@@ -164,6 +200,23 @@ const MonitoringEventsEventIdRoute = MonitoringEventsEventIdRouteImport.update({
   id: '/events_/$eventId',
   path: '/events/$eventId',
   getParentRoute: () => MonitoringRoute,
+} as any)
+const MonitoringCollectionHealthAgentConfigRoute =
+  MonitoringCollectionHealthAgentConfigRouteImport.update({
+    id: '/agent-config',
+    path: '/agent-config',
+    getParentRoute: () => MonitoringCollectionHealthRoute,
+  } as any)
+const MonitoringBaselineDiffIdRoute =
+  MonitoringBaselineDiffIdRouteImport.update({
+    id: '/$diffId',
+    path: '/$diffId',
+    getParentRoute: () => MonitoringBaselineRoute,
+  } as any)
+const MonitoringAlertsAlertIdRoute = MonitoringAlertsAlertIdRouteImport.update({
+  id: '/$alertId',
+  path: '/$alertId',
+  getParentRoute: () => MonitoringAlertsRoute,
 } as any)
 const ApiTerminalPresenceRoute = ApiTerminalPresenceRouteImport.update({
   id: '/api/terminal/presence',
@@ -225,6 +278,12 @@ const ApiAgentDecommissionRoute = ApiAgentDecommissionRouteImport.update({
   path: '/api/agent/decommission',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitoringCollectionHealthCollectorCollectorNameRoute =
+  MonitoringCollectionHealthCollectorCollectorNameRouteImport.update({
+    id: '/collector/$collectorName',
+    path: '/collector/$collectorName',
+    getParentRoute: () => MonitoringCollectionHealthRoute,
+  } as any)
 const ApiSecurityRulesRuleIdRoute = ApiSecurityRulesRuleIdRouteImport.update({
   id: '/$ruleId',
   path: '/$ruleId',
@@ -332,10 +391,13 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
-  '/monitoring/alerts': typeof MonitoringAlertsRoute
+  '/monitoring/alerts': typeof MonitoringAlertsRouteWithChildren
+  '/monitoring/baseline': typeof MonitoringBaselineRouteWithChildren
+  '/monitoring/collection-health': typeof MonitoringCollectionHealthRouteWithChildren
   '/monitoring/events': typeof MonitoringEventsRoute
+  '/monitoring/investigation': typeof MonitoringInvestigationRoute
   '/monitoring/machines': typeof MonitoringMachinesRouteWithChildren
-  '/monitoring/rules': typeof MonitoringRulesRoute
+  '/monitoring/rules': typeof MonitoringRulesRouteWithChildren
   '/machines/': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -349,8 +411,13 @@ export interface FileRoutesByFullPath {
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
+  '/monitoring/alerts/$alertId': typeof MonitoringAlertsAlertIdRoute
+  '/monitoring/baseline/$diffId': typeof MonitoringBaselineDiffIdRoute
+  '/monitoring/collection-health/agent-config': typeof MonitoringCollectionHealthAgentConfigRoute
   '/monitoring/events/$eventId': typeof MonitoringEventsEventIdRoute
   '/monitoring/machines/$machineId': typeof MonitoringMachinesMachineIdRoute
+  '/monitoring/rules/correlations': typeof MonitoringRulesCorrelationsRoute
+  '/monitoring/rules/editor': typeof MonitoringRulesEditorRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -364,6 +431,7 @@ export interface FileRoutesByFullPath {
   '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
   '/api/security/investigation/search': typeof ApiSecurityInvestigationSearchRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
+  '/monitoring/collection-health/collector/$collectorName': typeof MonitoringCollectionHealthCollectorCollectorNameRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
   '/api/security/events/$eventId/investigation-context': typeof ApiSecurityEventsEventIdInvestigationContextRoute
@@ -383,10 +451,13 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
-  '/monitoring/alerts': typeof MonitoringAlertsRoute
+  '/monitoring/alerts': typeof MonitoringAlertsRouteWithChildren
+  '/monitoring/baseline': typeof MonitoringBaselineRouteWithChildren
+  '/monitoring/collection-health': typeof MonitoringCollectionHealthRouteWithChildren
   '/monitoring/events': typeof MonitoringEventsRoute
+  '/monitoring/investigation': typeof MonitoringInvestigationRoute
   '/monitoring/machines': typeof MonitoringMachinesRouteWithChildren
-  '/monitoring/rules': typeof MonitoringRulesRoute
+  '/monitoring/rules': typeof MonitoringRulesRouteWithChildren
   '/machines': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -400,8 +471,13 @@ export interface FileRoutesByTo {
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
+  '/monitoring/alerts/$alertId': typeof MonitoringAlertsAlertIdRoute
+  '/monitoring/baseline/$diffId': typeof MonitoringBaselineDiffIdRoute
+  '/monitoring/collection-health/agent-config': typeof MonitoringCollectionHealthAgentConfigRoute
   '/monitoring/events/$eventId': typeof MonitoringEventsEventIdRoute
   '/monitoring/machines/$machineId': typeof MonitoringMachinesMachineIdRoute
+  '/monitoring/rules/correlations': typeof MonitoringRulesCorrelationsRoute
+  '/monitoring/rules/editor': typeof MonitoringRulesEditorRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -415,6 +491,7 @@ export interface FileRoutesByTo {
   '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
   '/api/security/investigation/search': typeof ApiSecurityInvestigationSearchRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
+  '/monitoring/collection-health/collector/$collectorName': typeof MonitoringCollectionHealthCollectorCollectorNameRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
   '/api/security/events/$eventId/investigation-context': typeof ApiSecurityEventsEventIdInvestigationContextRoute
@@ -435,10 +512,13 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/api/profile-photo': typeof ApiProfilePhotoRoute
   '/machines/$machineId': typeof MachinesMachineIdRoute
-  '/monitoring/alerts': typeof MonitoringAlertsRoute
+  '/monitoring/alerts': typeof MonitoringAlertsRouteWithChildren
+  '/monitoring/baseline': typeof MonitoringBaselineRouteWithChildren
+  '/monitoring/collection-health': typeof MonitoringCollectionHealthRouteWithChildren
   '/monitoring/events': typeof MonitoringEventsRoute
+  '/monitoring/investigation': typeof MonitoringInvestigationRoute
   '/monitoring/machines': typeof MonitoringMachinesRouteWithChildren
-  '/monitoring/rules': typeof MonitoringRulesRoute
+  '/monitoring/rules': typeof MonitoringRulesRouteWithChildren
   '/machines/': typeof MachinesIndexRoute
   '/api/agent/decommission': typeof ApiAgentDecommissionRoute
   '/api/agent/heartbeat': typeof ApiAgentHeartbeatRoute
@@ -452,8 +532,13 @@ export interface FileRoutesById {
   '/api/security/rules': typeof ApiSecurityRulesRouteWithChildren
   '/api/terminal/close': typeof ApiTerminalCloseRoute
   '/api/terminal/presence': typeof ApiTerminalPresenceRoute
+  '/monitoring/alerts/$alertId': typeof MonitoringAlertsAlertIdRoute
+  '/monitoring/baseline/$diffId': typeof MonitoringBaselineDiffIdRoute
+  '/monitoring/collection-health/agent-config': typeof MonitoringCollectionHealthAgentConfigRoute
   '/monitoring/events_/$eventId': typeof MonitoringEventsEventIdRoute
   '/monitoring/machines/$machineId': typeof MonitoringMachinesMachineIdRoute
+  '/monitoring/rules/correlations': typeof MonitoringRulesCorrelationsRoute
+  '/monitoring/rules/editor': typeof MonitoringRulesEditorRoute
   '/api/agent/executions/result': typeof ApiAgentExecutionsResultRoute
   '/api/agent/files/agent.py': typeof ApiAgentFilesAgentDotpyRoute
   '/api/agent/files/config-example-json': typeof ApiAgentFilesConfigExampleJsonRoute
@@ -467,6 +552,7 @@ export interface FileRoutesById {
   '/api/security/events/overview': typeof ApiSecurityEventsOverviewRoute
   '/api/security/investigation/search': typeof ApiSecurityInvestigationSearchRoute
   '/api/security/rules/$ruleId': typeof ApiSecurityRulesRuleIdRoute
+  '/monitoring/collection-health/collector/$collectorName': typeof MonitoringCollectionHealthCollectorCollectorNameRoute
   '/api/security/alerts/$alertId/comments': typeof ApiSecurityAlertsAlertIdCommentsRoute
   '/api/security/alerts/$alertId/status': typeof ApiSecurityAlertsAlertIdStatusRoute
   '/api/security/events/$eventId/investigation-context': typeof ApiSecurityEventsEventIdInvestigationContextRoute
@@ -489,7 +575,10 @@ export interface FileRouteTypes {
     | '/api/profile-photo'
     | '/machines/$machineId'
     | '/monitoring/alerts'
+    | '/monitoring/baseline'
+    | '/monitoring/collection-health'
     | '/monitoring/events'
+    | '/monitoring/investigation'
     | '/monitoring/machines'
     | '/monitoring/rules'
     | '/machines/'
@@ -505,8 +594,13 @@ export interface FileRouteTypes {
     | '/api/security/rules'
     | '/api/terminal/close'
     | '/api/terminal/presence'
+    | '/monitoring/alerts/$alertId'
+    | '/monitoring/baseline/$diffId'
+    | '/monitoring/collection-health/agent-config'
     | '/monitoring/events/$eventId'
     | '/monitoring/machines/$machineId'
+    | '/monitoring/rules/correlations'
+    | '/monitoring/rules/editor'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -520,6 +614,7 @@ export interface FileRouteTypes {
     | '/api/security/events/overview'
     | '/api/security/investigation/search'
     | '/api/security/rules/$ruleId'
+    | '/monitoring/collection-health/collector/$collectorName'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
     | '/api/security/events/$eventId/investigation-context'
@@ -540,7 +635,10 @@ export interface FileRouteTypes {
     | '/api/profile-photo'
     | '/machines/$machineId'
     | '/monitoring/alerts'
+    | '/monitoring/baseline'
+    | '/monitoring/collection-health'
     | '/monitoring/events'
+    | '/monitoring/investigation'
     | '/monitoring/machines'
     | '/monitoring/rules'
     | '/machines'
@@ -556,8 +654,13 @@ export interface FileRouteTypes {
     | '/api/security/rules'
     | '/api/terminal/close'
     | '/api/terminal/presence'
+    | '/monitoring/alerts/$alertId'
+    | '/monitoring/baseline/$diffId'
+    | '/monitoring/collection-health/agent-config'
     | '/monitoring/events/$eventId'
     | '/monitoring/machines/$machineId'
+    | '/monitoring/rules/correlations'
+    | '/monitoring/rules/editor'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -571,6 +674,7 @@ export interface FileRouteTypes {
     | '/api/security/events/overview'
     | '/api/security/investigation/search'
     | '/api/security/rules/$ruleId'
+    | '/monitoring/collection-health/collector/$collectorName'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
     | '/api/security/events/$eventId/investigation-context'
@@ -591,7 +695,10 @@ export interface FileRouteTypes {
     | '/api/profile-photo'
     | '/machines/$machineId'
     | '/monitoring/alerts'
+    | '/monitoring/baseline'
+    | '/monitoring/collection-health'
     | '/monitoring/events'
+    | '/monitoring/investigation'
     | '/monitoring/machines'
     | '/monitoring/rules'
     | '/machines/'
@@ -607,8 +714,13 @@ export interface FileRouteTypes {
     | '/api/security/rules'
     | '/api/terminal/close'
     | '/api/terminal/presence'
+    | '/monitoring/alerts/$alertId'
+    | '/monitoring/baseline/$diffId'
+    | '/monitoring/collection-health/agent-config'
     | '/monitoring/events_/$eventId'
     | '/monitoring/machines/$machineId'
+    | '/monitoring/rules/correlations'
+    | '/monitoring/rules/editor'
     | '/api/agent/executions/result'
     | '/api/agent/files/agent.py'
     | '/api/agent/files/config-example-json'
@@ -622,6 +734,7 @@ export interface FileRouteTypes {
     | '/api/security/events/overview'
     | '/api/security/investigation/search'
     | '/api/security/rules/$ruleId'
+    | '/monitoring/collection-health/collector/$collectorName'
     | '/api/security/alerts/$alertId/comments'
     | '/api/security/alerts/$alertId/status'
     | '/api/security/events/$eventId/investigation-context'
@@ -758,11 +871,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitoringMachinesRouteImport
       parentRoute: typeof MonitoringRoute
     }
+    '/monitoring/investigation': {
+      id: '/monitoring/investigation'
+      path: '/investigation'
+      fullPath: '/monitoring/investigation'
+      preLoaderRoute: typeof MonitoringInvestigationRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
     '/monitoring/events': {
       id: '/monitoring/events'
       path: '/events'
       fullPath: '/monitoring/events'
       preLoaderRoute: typeof MonitoringEventsRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
+    '/monitoring/collection-health': {
+      id: '/monitoring/collection-health'
+      path: '/collection-health'
+      fullPath: '/monitoring/collection-health'
+      preLoaderRoute: typeof MonitoringCollectionHealthRouteImport
+      parentRoute: typeof MonitoringRoute
+    }
+    '/monitoring/baseline': {
+      id: '/monitoring/baseline'
+      path: '/baseline'
+      fullPath: '/monitoring/baseline'
+      preLoaderRoute: typeof MonitoringBaselineRouteImport
       parentRoute: typeof MonitoringRoute
     }
     '/monitoring/alerts': {
@@ -800,6 +934,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDeploymentStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monitoring/rules/editor': {
+      id: '/monitoring/rules/editor'
+      path: '/editor'
+      fullPath: '/monitoring/rules/editor'
+      preLoaderRoute: typeof MonitoringRulesEditorRouteImport
+      parentRoute: typeof MonitoringRulesRoute
+    }
+    '/monitoring/rules/correlations': {
+      id: '/monitoring/rules/correlations'
+      path: '/correlations'
+      fullPath: '/monitoring/rules/correlations'
+      preLoaderRoute: typeof MonitoringRulesCorrelationsRouteImport
+      parentRoute: typeof MonitoringRulesRoute
+    }
     '/monitoring/machines/$machineId': {
       id: '/monitoring/machines/$machineId'
       path: '/$machineId'
@@ -813,6 +961,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/monitoring/events/$eventId'
       preLoaderRoute: typeof MonitoringEventsEventIdRouteImport
       parentRoute: typeof MonitoringRoute
+    }
+    '/monitoring/collection-health/agent-config': {
+      id: '/monitoring/collection-health/agent-config'
+      path: '/agent-config'
+      fullPath: '/monitoring/collection-health/agent-config'
+      preLoaderRoute: typeof MonitoringCollectionHealthAgentConfigRouteImport
+      parentRoute: typeof MonitoringCollectionHealthRoute
+    }
+    '/monitoring/baseline/$diffId': {
+      id: '/monitoring/baseline/$diffId'
+      path: '/$diffId'
+      fullPath: '/monitoring/baseline/$diffId'
+      preLoaderRoute: typeof MonitoringBaselineDiffIdRouteImport
+      parentRoute: typeof MonitoringBaselineRoute
+    }
+    '/monitoring/alerts/$alertId': {
+      id: '/monitoring/alerts/$alertId'
+      path: '/$alertId'
+      fullPath: '/monitoring/alerts/$alertId'
+      preLoaderRoute: typeof MonitoringAlertsAlertIdRouteImport
+      parentRoute: typeof MonitoringAlertsRoute
     }
     '/api/terminal/presence': {
       id: '/api/terminal/presence'
@@ -897,6 +1066,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/agent/decommission'
       preLoaderRoute: typeof ApiAgentDecommissionRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/monitoring/collection-health/collector/$collectorName': {
+      id: '/monitoring/collection-health/collector/$collectorName'
+      path: '/collector/$collectorName'
+      fullPath: '/monitoring/collection-health/collector/$collectorName'
+      preLoaderRoute: typeof MonitoringCollectionHealthCollectorCollectorNameRouteImport
+      parentRoute: typeof MonitoringCollectionHealthRoute
     }
     '/api/security/rules/$ruleId': {
       id: '/api/security/rules/$ruleId'
@@ -1013,6 +1189,46 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface MonitoringAlertsRouteChildren {
+  MonitoringAlertsAlertIdRoute: typeof MonitoringAlertsAlertIdRoute
+}
+
+const MonitoringAlertsRouteChildren: MonitoringAlertsRouteChildren = {
+  MonitoringAlertsAlertIdRoute: MonitoringAlertsAlertIdRoute,
+}
+
+const MonitoringAlertsRouteWithChildren =
+  MonitoringAlertsRoute._addFileChildren(MonitoringAlertsRouteChildren)
+
+interface MonitoringBaselineRouteChildren {
+  MonitoringBaselineDiffIdRoute: typeof MonitoringBaselineDiffIdRoute
+}
+
+const MonitoringBaselineRouteChildren: MonitoringBaselineRouteChildren = {
+  MonitoringBaselineDiffIdRoute: MonitoringBaselineDiffIdRoute,
+}
+
+const MonitoringBaselineRouteWithChildren =
+  MonitoringBaselineRoute._addFileChildren(MonitoringBaselineRouteChildren)
+
+interface MonitoringCollectionHealthRouteChildren {
+  MonitoringCollectionHealthAgentConfigRoute: typeof MonitoringCollectionHealthAgentConfigRoute
+  MonitoringCollectionHealthCollectorCollectorNameRoute: typeof MonitoringCollectionHealthCollectorCollectorNameRoute
+}
+
+const MonitoringCollectionHealthRouteChildren: MonitoringCollectionHealthRouteChildren =
+  {
+    MonitoringCollectionHealthAgentConfigRoute:
+      MonitoringCollectionHealthAgentConfigRoute,
+    MonitoringCollectionHealthCollectorCollectorNameRoute:
+      MonitoringCollectionHealthCollectorCollectorNameRoute,
+  }
+
+const MonitoringCollectionHealthRouteWithChildren =
+  MonitoringCollectionHealthRoute._addFileChildren(
+    MonitoringCollectionHealthRouteChildren,
+  )
+
 interface MonitoringMachinesRouteChildren {
   MonitoringMachinesMachineIdRoute: typeof MonitoringMachinesMachineIdRoute
 }
@@ -1024,19 +1240,39 @@ const MonitoringMachinesRouteChildren: MonitoringMachinesRouteChildren = {
 const MonitoringMachinesRouteWithChildren =
   MonitoringMachinesRoute._addFileChildren(MonitoringMachinesRouteChildren)
 
+interface MonitoringRulesRouteChildren {
+  MonitoringRulesCorrelationsRoute: typeof MonitoringRulesCorrelationsRoute
+  MonitoringRulesEditorRoute: typeof MonitoringRulesEditorRoute
+}
+
+const MonitoringRulesRouteChildren: MonitoringRulesRouteChildren = {
+  MonitoringRulesCorrelationsRoute: MonitoringRulesCorrelationsRoute,
+  MonitoringRulesEditorRoute: MonitoringRulesEditorRoute,
+}
+
+const MonitoringRulesRouteWithChildren = MonitoringRulesRoute._addFileChildren(
+  MonitoringRulesRouteChildren,
+)
+
 interface MonitoringRouteChildren {
-  MonitoringAlertsRoute: typeof MonitoringAlertsRoute
+  MonitoringAlertsRoute: typeof MonitoringAlertsRouteWithChildren
+  MonitoringBaselineRoute: typeof MonitoringBaselineRouteWithChildren
+  MonitoringCollectionHealthRoute: typeof MonitoringCollectionHealthRouteWithChildren
   MonitoringEventsRoute: typeof MonitoringEventsRoute
+  MonitoringInvestigationRoute: typeof MonitoringInvestigationRoute
   MonitoringMachinesRoute: typeof MonitoringMachinesRouteWithChildren
-  MonitoringRulesRoute: typeof MonitoringRulesRoute
+  MonitoringRulesRoute: typeof MonitoringRulesRouteWithChildren
   MonitoringEventsEventIdRoute: typeof MonitoringEventsEventIdRoute
 }
 
 const MonitoringRouteChildren: MonitoringRouteChildren = {
-  MonitoringAlertsRoute: MonitoringAlertsRoute,
+  MonitoringAlertsRoute: MonitoringAlertsRouteWithChildren,
+  MonitoringBaselineRoute: MonitoringBaselineRouteWithChildren,
+  MonitoringCollectionHealthRoute: MonitoringCollectionHealthRouteWithChildren,
   MonitoringEventsRoute: MonitoringEventsRoute,
+  MonitoringInvestigationRoute: MonitoringInvestigationRoute,
   MonitoringMachinesRoute: MonitoringMachinesRouteWithChildren,
-  MonitoringRulesRoute: MonitoringRulesRoute,
+  MonitoringRulesRoute: MonitoringRulesRouteWithChildren,
   MonitoringEventsEventIdRoute: MonitoringEventsEventIdRoute,
 }
 
